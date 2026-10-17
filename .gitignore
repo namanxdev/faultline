@@ -8,3 +8,14 @@ wheels/
 
 # Virtual environments
 .venv
+.env
+.env.*
+!.env.example
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.firecrawl/
+runs/
+*.sqlite3
+*.sqlite3-journal
