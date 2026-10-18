@@ -75,3 +75,22 @@ def test_prompt_variants_are_reported_separately():
     report = render(rows)
     assert "| llm (m1, neutral notes) | A | baseline | 1/1 | 1 |" in report
     assert "| llm (m1, stale notes) | A | baseline | 0/1 | 1 |" in report
+
+
+def test_ambiguous_write_recovery_is_scored_by_strategy():
+    def row(agent, passed, keyed, drift="ambiguous_write"):
+        return {
+            "agent": agent,
+            "ticket_id": "A",
+            "drift": drift,
+            "grade": {"passed": passed, "failure_tags": [], "idempotent_write": keyed},
+            "usage": {"cost_usd": 0, "prompt_tokens": 0, "completion_tokens": 0},
+        }
+
+    rows = [row("idem", True, True), row("read", True, False), row("read", False, False)]
+    report = render(rows + [row("idem", True, True, "baseline")])
+    assert "| idem | 1 | 1 | 0 | 0 |" in report
+    assert "| read | 2 | 0 | 1 | 1 |" in report
+    # Phase 1 records have no such field, so their reports do not change.
+    old = [{**r, "grade": {"passed": True, "failure_tags": []}} for r in rows]
+    assert "Ambiguous-write recovery" not in render(old)

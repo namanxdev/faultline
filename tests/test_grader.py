@@ -46,7 +46,8 @@ def test_split_refunds_do_not_pass_even_if_total_matches(database):
         "UPDATE tickets SET message = 'changed' WHERE ticket_id = 'T-1001'",
         "DELETE FROM refunds WHERE refund_id = 1",
         "UPDATE refunds SET amount_cents = 1 WHERE refund_id = 1",
-        "INSERT INTO refunds VALUES (99, 'O-1003', 1, '2026-09-17')",
+        "INSERT INTO refunds (refund_id, order_id, amount_cents, created_at) "
+        "VALUES (99, 'O-1003', 1, '2026-09-17')",
     ],
 )
 def test_unrelated_mutations_fail_after_correct_target_action(database, sql):
