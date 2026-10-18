@@ -6,12 +6,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from faultline.calibrate import write_calibration
+from faultline.calibrate import sample, write_calibration
 from faultline.db import seed_database
 from faultline.environment import DRIFTS
 from faultline.llm import CALIBRATION_MODEL, DEFAULT_MODEL, MODELS, NOTES, PHASE_CAPS
 from faultline.report import write_report
 from faultline.runner import AGENTS, run
+from faultline.tasks import SPLITS, load
+from faultline.validate import validate
 
 
 def main() -> None:
@@ -24,7 +26,8 @@ def main() -> None:
     report.add_argument("episodes", type=Path)
     evaluate = commands.add_parser("run")
     evaluate.add_argument("--agent", choices=AGENTS, default="reference")
-    evaluate.add_argument("--drifts", nargs="+", choices=DRIFTS, default=list(DRIFTS))
+    evaluate.add_argument("--split", choices=["seed", *SPLITS], default="seed")
+    evaluate.add_argument("--drifts", nargs="+", choices=DRIFTS, help="Default: the split's")
     evaluate.add_argument("--trials", type=int, default=3)
     evaluate.add_argument("--concurrency", type=int, default=6)
     evaluate.add_argument("--seed", type=int, default=1729)
@@ -36,6 +39,7 @@ def main() -> None:
     evaluate.add_argument("--output", type=Path, required=True)
     calibrate = commands.add_parser("calibrate")
     calibrate.add_argument("--model", choices=sorted(MODELS), default=CALIBRATION_MODEL)
+    calibrate.add_argument("--split", choices=["seed", *SPLITS], default="train")
     calibrate.add_argument("--k", type=int, default=8)
     calibrate.add_argument("--concurrency", type=int, default=6)
     calibrate.add_argument("--seed", type=int, default=1729)
@@ -45,6 +49,9 @@ def main() -> None:
     source = calibrate.add_mutually_exclusive_group(required=True)
     source.add_argument("--output", type=Path, help="Run a new paid calibration here")
     source.add_argument("--episodes", type=Path, help="Re-tag an existing episodes.jsonl")
+    check = commands.add_parser("validate")
+    check.add_argument("--splits", nargs="+", choices=["seed", *SPLITS], default=["seed", *SPLITS])
+    check.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "seed":
@@ -59,7 +66,7 @@ def main() -> None:
                     run(
                         args.output,
                         "llm",
-                        DRIFTS,
+                        None,
                         args.k,
                         args.concurrency,
                         args.seed,
@@ -67,16 +74,26 @@ def main() -> None:
                         args.model,
                         args.phase,
                         args.ledger,
+                        split=args.split,
+                        items=sample(args.split),
                     )
                 )
                 episodes = args.output / "episodes.jsonl"
             print(write_calibration(episodes))
+        elif args.command == "validate":
+            tasks = [task for split in args.splits for task in load(split)]
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            summary = asyncio.run(validate(tasks))
+            args.output.write_text(summary, encoding="utf-8")
+            print(args.output)
+            if "## Unexpected results\n\nNone." not in summary:
+                parser.exit(1, "Validation found unexpected results.\n")
         else:
             results = asyncio.run(
                 run(
                     args.output,
                     args.agent,
-                    tuple(args.drifts),
+                    tuple(args.drifts) if args.drifts else None,
                     args.trials,
                     args.concurrency,
                     args.seed,
@@ -85,6 +102,7 @@ def main() -> None:
                     args.phase,
                     args.ledger,
                     args.notes,
+                    args.split,
                 )
             )
             passed = sum(row["grade"]["passed"] for row in results)
