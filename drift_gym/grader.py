@@ -46,6 +46,7 @@ def grade(before: dict, final_path: str | Path, ticket_id: str) -> Grade:
         r["refund_id"]: r for r in after["refunds"] if r["refund_id"] in old_refunds
     } == old_refunds
     exact = [r["amount_cents"] for r in target_new] == ([amount] if amount else [])
+
     def unaffected(rows):
         return [r for r in rows if r["ticket_id"] != ticket_id]
 
