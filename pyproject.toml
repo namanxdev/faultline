@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Evaluate tool-using agents when APIs drift, using final database state."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
 dependencies = ["mcp==2.3.0", "litellm>=1.80,<2", "python-dotenv>=1,<2"]
 
 [build-system]
