@@ -78,6 +78,7 @@ MODELS = {
     ),
 }
 DEFAULT_MODEL = "openrouter/openai/gpt-4.1-mini"
+CALIBRATION_MODEL = "openrouter/openai/gpt-4.1-nano"
 PHASE_CAPS = {1: 5.0, 2: 2.0, 3: 25.0}
 MAX_OUTPUT = 512
 INSTRUCTIONS = """Complete the assigned refund-support ticket using the tools.

@@ -6,9 +6,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from faultline.calibrate import write_calibration
 from faultline.db import seed_database
 from faultline.environment import DRIFTS
-from faultline.llm import DEFAULT_MODEL, MODELS, NOTES, PHASE_CAPS
+from faultline.llm import CALIBRATION_MODEL, DEFAULT_MODEL, MODELS, NOTES, PHASE_CAPS
 from faultline.report import write_report
 from faultline.runner import AGENTS, run
 
@@ -33,6 +34,17 @@ def main() -> None:
     evaluate.add_argument("--ledger", type=Path, default=Path("runs/spend-ledger.jsonl"))
     evaluate.add_argument("--notes", choices=sorted(NOTES), default="stale")
     evaluate.add_argument("--output", type=Path, required=True)
+    calibrate = commands.add_parser("calibrate")
+    calibrate.add_argument("--model", choices=sorted(MODELS), default=CALIBRATION_MODEL)
+    calibrate.add_argument("--k", type=int, default=8)
+    calibrate.add_argument("--concurrency", type=int, default=6)
+    calibrate.add_argument("--seed", type=int, default=1729)
+    calibrate.add_argument("--budget-usd", type=float, default=0.5)
+    calibrate.add_argument("--phase", type=int, choices=sorted(PHASE_CAPS), default=2)
+    calibrate.add_argument("--ledger", type=Path, default=Path("runs/spend-ledger.jsonl"))
+    source = calibrate.add_mutually_exclusive_group(required=True)
+    source.add_argument("--output", type=Path, help="Run a new paid calibration here")
+    source.add_argument("--episodes", type=Path, help="Re-tag an existing episodes.jsonl")
     args = parser.parse_args()
     try:
         if args.command == "seed":
@@ -40,6 +52,25 @@ def main() -> None:
             print(args.path)
         elif args.command == "report":
             print(write_report(args.episodes))
+        elif args.command == "calibrate":
+            episodes = args.episodes
+            if episodes is None:
+                asyncio.run(
+                    run(
+                        args.output,
+                        "llm",
+                        DRIFTS,
+                        args.k,
+                        args.concurrency,
+                        args.seed,
+                        args.budget_usd,
+                        args.model,
+                        args.phase,
+                        args.ledger,
+                    )
+                )
+                episodes = args.output / "episodes.jsonl"
+            print(write_calibration(episodes))
         else:
             results = asyncio.run(
                 run(
