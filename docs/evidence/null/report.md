@@ -4,7 +4,7 @@ Episodes: 6; passed: 0; success: 0.00%.
 
 Token cost estimate: $0.000000; tokens: 0; unsettled reservations: $0.000000.
 
-Costs use uncached standard token prices; they are not an invoice.
+Costs are provider-billed amounts where reported, else uncached list prices.
 
 | Agent | Task | Drift | c/n | k | pass@k | pass^k |
 |---|---|---|---:|---:|---:|---:|

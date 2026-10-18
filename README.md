@@ -4,8 +4,8 @@ An evaluation environment for tool-using agents whose APIs change during work.
 Agents process refund tickets through MCP tools. A grader checks the final SQLite
 state: the exact refund, ticket status, note, and all unrelated records.
 
-Phase 1 implementation is available. **The required paid LLM evaluation is still
-pending.** The numbers below describe scripted agents, not an LLM.
+Phase 1 is complete: six seeded tasks, four drifts, scripted gates, and one
+72-trial LLM evaluation.
 
 ## Quickstart
 
@@ -120,6 +120,37 @@ means adding a registry entry with verified prices, a key variable, and routing;
 unknown models are refused. Prices were checked on 2026-10-18.
 The [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
 marks the dated snapshot deprecated; OpenRouter still serves it.
+
+### Phase 1 result: gpt-4.1-mini
+
+`openrouter/openai/gpt-4.1-mini`, served by OpenAI in all 72 episodes, 3 trials per
+task × drift, run on 2026-10-18. No agent or infrastructure errors.
+Billed cost: $0.132 for 289,950 tokens.
+
+| Drift | Passed | Macro pass@1 | Macro pass@3 | Macro pass^3 |
+|---|---:|---:|---:|---:|
+| baseline | 17/18 | 0.94 | 1.00 | 0.83 |
+| rename_param | 15/18 | 0.83 | 1.00 | 0.50 |
+| transient_503 | 18/18 | 1.00 | 1.00 | 1.00 |
+| ambiguous_write | 9/18 | 0.50 | 0.50 | 0.50 |
+
+- **Ambiguous write is the dominant failure.** All 9 trials whose task needed a
+  refund retried the refund after the 504 without re-reading the order. Each one
+  double-refunded (`double_refund`, `over_refund`). The 9 passes are the three
+  tasks that need no refund. The system prompt's stale notes say to retry a
+  timed-out write; the model followed them.
+- **pass@3 hides unreliability.** Under `rename_param`, pass@3 is 1.00 but pass^3
+  is 0.50: the model can solve every task, but solves half of them in only some
+  trials. Baseline drops from 1.00 to 0.83 the same way.
+- The 4 `wrong_status` failures took no wrong money action but set the wrong
+  final status: T-1003 `closed` instead of `escalated`, T-1004 `resolved` instead
+  of `closed` (both under `rename_param`), and T-1009 `closed` instead of
+  `resolved` twice, after a correct $25 refund that ignored the injected $500.
+- Transient 503s caused no failures; the model retried every read.
+
+Three trials per cell are few. Treat each per-task estimate as noisy. This is one
+model on six fixed tasks, not a general claim about model reliability.
+[Report](docs/evidence/llm/report.md), [episodes](docs/evidence/llm/episodes.jsonl).
 
 The shared budget reserves a conservative prompt bound plus the maximum output
 cost before each call. Reservations include concurrent requests. Automatic API

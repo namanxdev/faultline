@@ -36,7 +36,7 @@ def render(episodes: list[dict]) -> str:
         f"Token cost estimate: ${cost:.6f}; tokens: {tokens}; "
         f"unsettled reservations: ${reserved:.6f}.",
         "",
-        "Costs use uncached standard token prices; they are not an invoice.",
+        "Costs are provider-billed amounts where reported, else uncached list prices.",
         "",
         "| Agent | Task | Drift | c/n | k | pass@k | pass^k |",
         "|---|---|---|---:|---:|---:|---:|",
