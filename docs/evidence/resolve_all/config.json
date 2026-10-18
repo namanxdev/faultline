@@ -1,0 +1,18 @@
+{
+  "agent": "resolve_all",
+  "budget_usd": 5.0,
+  "concurrency": 6,
+  "drifts": [
+    "baseline"
+  ],
+  "max_steps": 15,
+  "model": null,
+  "python": "3.12.12 (main, Dec 17 2025, 21:10:14) [MSC v.1944 64 bit (AMD64)]",
+  "seed": 1729,
+  "temperature": 0.7,
+  "trials": 1,
+  "versions": {
+    "litellm": "1.105.1",
+    "mcp": "2.3.0"
+  }
+}
