@@ -66,3 +66,45 @@ async def test_read_after_ambiguous_write_recovers_without_duplicate(database):
             "update_ticket", ticket_id="T-1001", status="resolved", note="Verified refund."
         )
     assert grade(before, database, "T-1001").passed
+
+
+# The failure each skipped step must produce. "recheck" only matters after an ambiguous write.
+NEAR_MISS_TAGS = {
+    "refund": "missed_refund",
+    "status": "wrong_status",
+    "note": "missing_note",
+    "escalate": "unauthorized_refund",
+    "window": "unauthorized_refund",
+    "prior_refund": "double_refund",
+    "recheck": "double_refund",
+    "ignore_message": "over_refund",
+}
+
+
+@pytest.mark.parametrize(
+    ("ticket", "skip"), [(t, s) for t, steps in agents.NEAR_MISSES.items() for s in steps]
+)
+async def test_near_miss_agents_skipping_one_required_step_score_zero(database, ticket, skip):
+    drift = "ambiguous_write" if skip == "recheck" else "baseline"
+    before = snapshot(database)
+    async with Client(create_server(database, drift), cache=None) as connection:
+        await agents.oracle(ToolClient(connection, []), ticket, skip)
+    result = grade(before, database, ticket)
+    assert not result.passed and NEAR_MISS_TAGS[skip] in result.failure_tags
+
+
+def test_every_task_has_the_common_near_misses():
+    assert set(agents.NEAR_MISSES) == set(TICKET_IDS)
+    for steps in agents.NEAR_MISSES.values():
+        assert {"status", "note"} <= set(steps) and len(set(steps)) == len(steps)
+
+
+@pytest.mark.parametrize("ticket", TICKET_IDS)
+async def test_known_limit_skipping_a_pure_read_is_invisible_to_the_state_grader(database, ticket):
+    # By design (§3 guardrail): a remembered policy gives the same final state, so it passes.
+    before = snapshot(database)
+    transcript = []
+    async with Client(create_server(database), cache=None) as connection:
+        await agents.oracle(ToolClient(connection, transcript), ticket, "read_policy")
+    assert "get_refund_policy" not in [e["tool"] for e in transcript]
+    assert grade(before, database, ticket).passed

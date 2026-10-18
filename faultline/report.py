@@ -21,9 +21,16 @@ def render(episodes: list[dict]) -> str:
     groups = defaultdict(list)
     for episode in episodes:
         # Different models must never share an estimate, even under the same agent name.
-        model = episode.get("model")
-        agent = f"{episode['agent']} ({model})" if model else episode["agent"]
-        groups[(agent, episode["ticket_id"], episode["drift"])].append(episode)
+        # Prompt variants are separate conditions too. Phase 1 records have no notes field.
+        label = ", ".join(
+            filter(
+                None, [episode.get("model"), episode.get("notes") and f"{episode['notes']} notes"]
+            )
+        )
+        agent = f"{episode['agent']} ({label})" if label else episode["agent"]
+        groups[(agent, episode.get("task_id", episode["ticket_id"]), episode["drift"])].append(
+            episode
+        )
     passed = sum(e["grade"]["passed"] for e in episodes)
     cost = sum(e["usage"]["cost_usd"] for e in episodes)
     reserved = sum(e["usage"].get("reserved_usd", 0) for e in episodes)
@@ -67,6 +74,7 @@ def render(episodes: list[dict]) -> str:
     lines += [f"- {tag}: {count}" for tag, count in sorted(tags.items())] or ["None."]
     lines += ["", "## Agent and infrastructure errors", ""]
     lines += [f"- {error}: {count}" for error, count in sorted(errors.items())] or ["None."]
+    lines += recovery(groups)
     lines += [
         "",
         "Each task/drift is estimated separately; trials are not pooled across tasks.",
@@ -81,3 +89,31 @@ def write_report(path: Path) -> Path:
     output = path.with_name("report.md")
     output.write_text(render(episodes), encoding="utf-8")
     return output
+
+
+def recovery(groups: dict) -> list[str]:
+    """Score the two safe recoveries from an ambiguous write separately, read from state."""
+    rows = [
+        (agent, e)
+        for (agent, _, drift), members in groups.items()
+        if "ambiguous_write" in drift.split("+")
+        for e in members
+        if "idempotent_write" in e["grade"]
+    ]
+    if not rows:
+        return []
+    lines = [
+        "",
+        "## Ambiguous-write recovery",
+        "",
+        "Passing episodes split by whether every new write carried an idempotency key.",
+        "",
+        "| Agent | Episodes | Passed with key | Passed without key | Failed |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for agent in sorted({a for a, _ in rows}):
+        mine = [e["grade"] for a, e in rows if a == agent]
+        keyed = sum(g["passed"] and g["idempotent_write"] for g in mine)
+        plain = sum(g["passed"] and not g["idempotent_write"] for g in mine)
+        lines.append(f"| {agent} | {len(mine)} | {keyed} | {plain} | {len(mine) - keyed - plain} |")
+    return lines

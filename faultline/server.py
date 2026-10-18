@@ -1,73 +1,63 @@
 """Official MCP SDK adapter. Each process owns one trial's drift counters."""
 
 import argparse
+import inspect
 import os
 from pathlib import Path
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from faultline.environment import DRIFTS, RefundTools, ToolFailure
+from faultline.environment import DRIFTS, RefundTools, ToolFailure, Tools
+from faultline.itsm import ITSMTools
+from faultline.toolspec import ToolSpec
+
+DOMAINS = {"refund": RefundTools, "itsm": ITSMTools}
 
 
-def create_server(path: str | Path, drift: str = "baseline") -> MCPServer:
-    service = RefundTools(path, drift)
-    server = MCPServer("faultline", version="0.1.0", log_level="ERROR")
+class DriftServer(MCPServer):
+    def __init__(self, service: Tools):
+        super().__init__("faultline", version="0.1.0", log_level="ERROR")
+        self.service = service
 
-    def call(name: str, **args) -> dict:
+    async def list_tools(self):
+        # Descriptions are read per request, so description_drift can change them mid-session.
+        current = {s.name: s.description for s in self.service.specs()}
+        return [
+            t.model_copy(update={"description": current[t.name]})
+            for t in await super().list_tools()
+        ]
+
+
+def _tool(service: Tools, spec: ToolSpec):
+    def run(**args) -> dict:
         try:
-            return service.call(name, args)
+            return service.call(spec.name, {k: v for k, v in args.items() if v is not None})
         except ToolFailure as exc:
             raise ToolError(str(exc)) from exc
 
-    @server.tool()
-    def get_ticket(ticket_id: str) -> dict:
-        """Read a support ticket, including its customer, order, message, status, and note."""
-        return call("get_ticket", ticket_id=ticket_id)
+    # The SDK builds the input schema from this signature, so drifted names are published.
+    run.__signature__ = inspect.Signature(
+        [
+            inspect.Parameter(
+                p.name,
+                inspect.Parameter.KEYWORD_ONLY,
+                annotation=p.type if p.required else p.type | None,
+                default=inspect.Parameter.empty if p.required else None,
+            )
+            for p in spec.params
+        ],
+        return_annotation=dict,
+    )
+    run.__name__ = spec.name
+    return run
 
-    @server.tool()
-    def find_customer(email: str) -> dict:
-        """Find a customer by exact email address."""
-        return call("find_customer", email=email)
 
-    @server.tool()
-    def list_orders(customer_id: str) -> dict:
-        """List customer orders in an object with an orders array."""
-        return call("list_orders", customer_id=customer_id)
-
-    @server.tool()
-    def get_refund_policy() -> dict:
-        """Read the authoritative current refund policy and today's date."""
-        return call("get_refund_policy")
-
-    @server.tool()
-    def update_ticket(ticket_id: str, status: str, note: str) -> dict:
-        """Set ticket status and note after taking the required action."""
-        return call("update_ticket", ticket_id=ticket_id, status=status, note=note)
-
-    if drift == "rename_param":
-
-        @server.tool(name="get_order")
-        def get_order_v2(order_ref: str) -> dict:
-            """Read an order, including total and refunded_amount. Use order_ref."""
-            return call("get_order", order_ref=order_ref)
-
-        @server.tool(name="issue_refund")
-        def issue_refund_v2(order_ref: str, amount: str) -> dict:
-            """Issue a refund in dollars. Use order_ref. This write is not idempotent."""
-            return call("issue_refund", order_ref=order_ref, amount=amount)
-    else:
-
-        @server.tool()
-        def get_order(order_id: str) -> dict:
-            """Read an order, including total and refunded_amount."""
-            return call("get_order", order_id=order_id)
-
-        @server.tool()
-        def issue_refund(order_id: str, amount: str) -> dict:
-            """Issue a refund in dollars. This write is not idempotent."""
-            return call("issue_refund", order_id=order_id, amount=amount)
-
+def create_server(path: str | Path, drift: str = "baseline", domain: str = "refund") -> MCPServer:
+    service = DOMAINS[domain](path, drift)
+    server = DriftServer(service)
+    for spec in service.specs():
+        server.add_tool(_tool(service, spec), name=spec.name, description=spec.description)
     return server
 
 
@@ -75,12 +65,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, required=True)
     parser.add_argument("--drift", choices=DRIFTS, default=os.environ.get("DRIFT", "baseline"))
+    parser.add_argument("--domain", choices=sorted(DOMAINS), default="refund")
     parser.add_argument("--http", action="store_true")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     if not args.db.is_file():
         parser.error("Database does not exist. Run faultline seed first.")
-    server = create_server(args.db, args.drift)
+    server = create_server(args.db, args.drift, args.domain)
     if args.http:
         server.run(transport="streamable-http", host="127.0.0.1", port=args.port)
     else:

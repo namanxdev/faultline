@@ -12,15 +12,52 @@ from pathlib import Path
 
 from mcp import Client, StdioServerParameters
 
-from faultline import agents
+from faultline import agents, itsm
 from faultline.client import ToolClient
-from faultline.db import TICKET_IDS, seed_database, snapshot
-from faultline.environment import DRIFTS
-from faultline.grader import grade
-from faultline.llm import DEFAULT_MODEL, MODELS, PHASE_CAPS, Budget, Ledger, Usage, run_llm
+from faultline.db import TABLES, seed_rows, snapshot
+from faultline.drifts import DRIFTS, HELD_OUT
+from faultline.grader import grade_task
+from faultline.llm import (
+    DEFAULT_MODEL,
+    MODELS,
+    NOTES,
+    PHASE_CAPS,
+    Budget,
+    Ledger,
+    Usage,
+    run_llm,
+)
 from faultline.report import write_report
+from faultline.tasks import SPLIT_DRIFTS, SPLITS, Task, load
 
-AGENTS = ("reference", "oracle", "null", "refund_all", "close_all", "resolve_all", "llm")
+AGENTS = (
+    "reference",
+    "oracle",
+    "oracle_idem",
+    "null",
+    "refund_all",
+    "close_all",
+    "resolve_all",
+    "llm",
+)
+
+
+def policy_version(drift: str) -> int:
+    return 4 if "policy_v4" in drift.split("+") else 3
+
+
+async def play(agent: str, client: ToolClient, task: Task, skip: str | None = None) -> None:
+    """Run one scripted agent on one task. `skip` turns the oracle into a near miss."""
+    is_itsm = task.domain == "itsm"
+    if agent in ("oracle", "oracle_idem"):
+        solve = agents.itsm_oracle if is_itsm else agents.oracle
+        await solve(client, task.target, skip, agent == "oracle_idem")
+    elif agent == "reference":
+        await (agents.itsm_reference if is_itsm else agents.reference)(client, task.target)
+    elif agent == "null":
+        await agents.null(client, task.target)
+    else:
+        await agents.hack(client, task.target, agent, task.targets)
 
 
 def redact(text: str) -> str:
@@ -50,19 +87,21 @@ async def run_trial(
     root: Path,
     seed_path: Path,
     agent: str,
-    ticket_id: str,
+    task: Task,
     drift: str,
     trial: int,
     seed: int,
     budget: Budget,
     model: str | None,
+    notes: str | None,
 ) -> dict:
-    episode_id = f"{agent}-{ticket_id}-{drift}-{trial}"
+    episode_id = f"{agent}-{task.task_id}-{drift}-{trial}"
     directory = root / "trials" / episode_id
     directory.mkdir(parents=True)
     db_path = directory / "state.sqlite3"
     shutil.copyfile(seed_path, db_path)
-    before = snapshot(db_path)
+    tables = itsm.TABLES if task.domain == "itsm" else TABLES
+    before = snapshot(db_path, tables)
     transcript = []
     usage = Usage()
     error = None
@@ -76,7 +115,7 @@ async def run_trial(
     env.update({"DRIFT": drift, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"})
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "faultline.server", "--db", str(db_path.resolve())],
+        args=["-m", "faultline.server", "--db", str(db_path.resolve()), "--domain", task.domain],
         env=env,
     )
     try:
@@ -86,11 +125,11 @@ async def run_trial(
                 protocol = connection.protocol_version
                 client = ToolClient(connection, transcript)
                 if agent == "llm":
-                    await run_llm(client, ticket_id, seed, budget, usage, model)
-                elif agent in ("reference", "oracle", "null"):
-                    await getattr(agents, agent)(client, ticket_id)
+                    await run_llm(
+                        client, task.target, seed, budget, usage, model, notes, task.domain
+                    )
                 else:
-                    await agents.hack(client, ticket_id, agent)
+                    await play(agent, client, task)
     except Exception as exc:
         # Do not persist provider exception bodies: they can contain request credentials.
         error = error_name(exc)
@@ -98,14 +137,20 @@ async def run_trial(
     result = {
         "episode_id": episode_id,
         "agent": agent,
-        "ticket_id": ticket_id,
+        "ticket_id": task.target,
+        "task_id": task.task_id,
+        "domain": task.domain,
+        "template": task.template,
+        "split": task.split,
+        "policy_version": policy_version(drift),
         "drift": drift,
         "trial": trial,
         "seed": seed,
         "protocol_version": protocol,
         "model": model,
+        "notes": notes,
         "usage": asdict(usage),
-        "grade": grade(before, db_path, ticket_id).to_dict(),
+        "grade": grade_task(before, db_path, task, policy_version(drift)).to_dict(),
         "error": error,
         "transcript": str((directory / "transcript.json").relative_to(root)).replace("\\", "/"),
     }
@@ -117,7 +162,7 @@ async def run_trial(
 async def run(
     output: Path,
     agent: str = "reference",
-    drifts: tuple = DRIFTS,
+    drifts: tuple | None = None,
     trials: int = 3,
     concurrency: int = 6,
     seed: int = 1729,
@@ -125,14 +170,25 @@ async def run(
     model: str = DEFAULT_MODEL,
     phase: int = 1,
     ledger: Path = Path("runs/spend-ledger.jsonl"),
+    notes: str = "stale",
+    split: str = "seed",
+    items: list[tuple[Task, str]] | None = None,
 ) -> list[dict]:
+    if split != "seed" and split not in SPLITS:
+        raise ValueError(f"Unknown split {split}")
+    drifts = tuple(drifts or SPLIT_DRIFTS[split])
     if agent not in AGENTS or not drifts or any(d not in DRIFTS for d in drifts):
         raise ValueError("Unknown agent or drift")
+    if split == "train" and set(drifts) & set(HELD_OUT):
+        raise ValueError("Held-out drift combinations never run on the train split")
     if len(set(drifts)) != len(drifts):
         raise ValueError("Duplicate drifts would overwrite trial artifacts")
     if trials < 1 or concurrency < 1:
         raise ValueError("Trials and concurrency must be positive")
+    if notes not in NOTES:
+        raise ValueError(f"Unknown notes variant {notes}")
     model = model if agent == "llm" else None
+    notes = notes if agent == "llm" else None
     if model is not None:
         if model not in MODELS:
             raise ValueError(f"Unknown model {model}; add it to MODELS with verified prices")
@@ -150,19 +206,31 @@ async def run(
         except ValueError:
             output.rmdir()
             raise
-    seed_path = output / "seed.sqlite3"
-    seed_database(seed_path)
+    tasks = load(split)
+    items = items or [(task, drift) for task in tasks for drift in drifts]
+    seeds = {}
+    for task, _ in items:
+        if task.task_id not in seeds:
+            # Seeded tasks share one database; generated tasks each have their own.
+            seeded = task.split == "seed"
+            path = output / ("seed.sqlite3" if seeded else f"seeds/{task.task_id}.sqlite3")
+            if not path.exists():
+                seed_rows(path, task.schema, task.rows)
+            seeds[task.task_id] = path
     write_json(
         output / "config.json",
         {
             "agent": agent,
             "drifts": drifts,
+            "split": split,
+            "items": len(items),
             "trials": trials,
             "concurrency": concurrency,
             "seed": seed,
             "budget_usd": budget_usd,
             "model": model,
             "provider_params": MODELS[model].params if model else None,
+            "notes": notes,
             "phase": phase,
             "versions": {p: version(p) for p in ("mcp", "litellm")},
             "python": sys.version,
@@ -172,22 +240,26 @@ async def run(
     )
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def limited(ticket_id: str, drift: str, trial: int, trial_seed: int):
+    async def limited(task: Task, drift: str, trial: int, trial_seed: int):
         async with semaphore:
             result = await run_trial(
-                output, seed_path, agent, ticket_id, drift, trial, trial_seed, budget, model
+                output,
+                seeds[task.task_id],
+                agent,
+                task,
+                drift,
+                trial,
+                trial_seed,
+                budget,
+                model,
+                notes,
             )
             # No await between open and close: one event-loop writer at a time.
             with (output / "episodes.jsonl").open("a", encoding="utf-8") as stream:
                 stream.write(redact(json.dumps(result, sort_keys=True)) + "\n")
             return result
 
-    jobs = [
-        (ticket, drift, trial)
-        for ticket in TICKET_IDS
-        for drift in drifts
-        for trial in range(trials)
-    ]
+    jobs = [(task, drift, trial) for task, drift in items for trial in range(trials)]
     try:
         results = await asyncio.gather(
             *(limited(*job, seed + index * 100) for index, job in enumerate(jobs))

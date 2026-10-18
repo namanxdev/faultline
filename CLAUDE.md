@@ -13,6 +13,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run faultline run --agent oracle --output runs/<new-dir>      # offline, free
 uv run faultline run --agent llm --budget-usd 5 --output runs/<new-dir>  # PAID
 uv run faultline report runs/<dir>/episodes.jsonl                # regenerate report
+uv run faultline validate --output runs/<new-dir>/validation.md  # all gates, offline
 uv run faultline-server --db <db> [--drift rename_param] [--http --port 8765]
 ```
 
@@ -21,14 +22,22 @@ CI runs them on Ubuntu and Windows, Python 3.11 and 3.12.
 
 ## Layout
 
-- `faultline/db.py`: seed fixtures; money is integer cents, decimal strings on the wire.
-- `faultline/environment.py`: tools plus drifts (`baseline`, `rename_param`,
-  `transient_503`, `ambiguous_write`). The server is deliberately permissive.
-- `faultline/server.py`: official MCP SDK v2 (`MCPServer`), stdio and Streamable HTTP.
-- `faultline/grader.py`: judges final DB state only, against independent `EXPECTED` answers.
-- `faultline/agents.py`: `reference` (brittle by design), `oracle` (must solve every
-  task × drift), `null`, and blanket hacks.
-- `faultline/llm.py`: model registry (`MODELS`), budget, phase spend ledger.
+- `faultline/db.py`: refund schema and seed fixture; money is integer cents, decimal strings on the wire.
+- `faultline/toolspec.py`: tools as data (`ToolSpec`, `Param`); drifts rewrite them.
+- `faultline/environment.py`: the drift-aware `Tools` engine and the refund domain.
+  The server is deliberately permissive.
+- `faultline/itsm.py`: the ITSM domain (incidents, changes, approvals, CMDB items).
+- `faultline/drifts/`: one module per perturbation, each with a `rationale`.
+  `combined.py` lists pairs; `HELD_OUT` pairs never run on train.
+- `faultline/server.py`: official MCP SDK v2 (`MCPServer`), built from specs; stdio and HTTP.
+- `faultline/tasks.py`: seed tasks and procedural splits (train 300, dev 50, test 100).
+  Expected outcomes come from the policy text, not from the agents.
+- `faultline/grader.py`: judges final DB state only (`grade`, `grade_itsm`, `grade_task`).
+- `faultline/agents.py`: `reference` (brittle by design), `oracle` and `itsm_oracle`
+  (must solve every task × drift), near misses via `skip`, `null`, and blanket hacks.
+- `faultline/validate.py`: offline gates over whole splits (`faultline validate`).
+- `faultline/calibrate.py`: tags template × drift cells; filters train.
+- `faultline/llm.py`: model registry (`MODELS`), prompts, budget, phase spend ledger.
 - `faultline/runner.py`: fresh DB copy and fresh server process per trial.
 - `docs/evidence/`: checked-in results; each `report.md` must regenerate byte-for-byte.
 

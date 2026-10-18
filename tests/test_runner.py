@@ -73,3 +73,30 @@ def test_json_escaped_secret_is_redacted_without_breaking_json(monkeypatch):
     secret = 'example-quote"and-backslash\\secret'
     monkeypatch.setenv("EXAMPLE_SECRET", secret)
     assert json.loads(redact(json.dumps({"content": secret}))) == {"content": "[REDACTED]"}
+
+
+async def test_unknown_notes_variant_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="notes"):
+        await run(tmp_path / "notes", agent="llm", notes="helpful")
+    assert not (tmp_path / "notes").exists()
+
+
+async def test_generated_tasks_run_in_real_subprocesses_for_both_domains(tmp_path):
+    from faultline.tasks import load
+
+    dev = load("dev")
+    lookup = next(t for t in dev if t.template == "order_lookup")
+    change = next(t for t in dev if t.template == "change_freeze")
+    items = [(lookup, "pagination"), (change, "rename_param+transient_503")]
+    results = await run(tmp_path / "gen", agent="oracle", split="dev", trials=1, items=items)
+    assert [r["domain"] for r in results] == ["refund", "itsm"]
+    assert all(r["grade"]["passed"] and r["error"] is None for r in results)
+    assert results[0]["episode_id"] == f"oracle-{lookup.task_id}-pagination-0"
+    assert (tmp_path / "gen" / "seeds" / f"{change.task_id}.sqlite3").is_file()
+
+
+async def test_train_split_refuses_held_out_drifts(tmp_path):
+    with pytest.raises(ValueError, match="Held-out"):
+        await run(
+            tmp_path / "t", agent="oracle", split="train", drifts=("rename_param+ambiguous_write",)
+        )
