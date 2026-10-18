@@ -7,6 +7,8 @@
   ],
   "max_steps": 15,
   "model": null,
+  "phase": 1,
+  "provider_params": null,
   "python": "3.12.12 (main, Dec 17 2025, 21:10:14) [MSC v.1944 64 bit (AMD64)]",
   "seed": 1729,
   "temperature": 0.7,

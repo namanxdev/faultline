@@ -1,4 +1,4 @@
-# drift-gym results
+# faultline results
 
 Episodes: 72; passed: 27; success: 37.50%.
 
@@ -106,7 +106,7 @@ Costs use uncached standard token prices; they are not an invoice.
 
 ## Agent and infrastructure errors
 
-- ExceptionGroup: 45
+- ToolFailure: 45
 
 Each task/drift is estimated separately; trials are not pooled across tasks.
 k > n is unavailable. Seeds help replay; hosted model responses are not deterministic.
