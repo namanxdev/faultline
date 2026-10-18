@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from faultline.db import seed_database
 from faultline.environment import DRIFTS
+from faultline.llm import DEFAULT_MODEL, MODELS, PHASE_CAPS
 from faultline.report import write_report
 from faultline.runner import AGENTS, run
 
@@ -27,6 +28,9 @@ def main() -> None:
     evaluate.add_argument("--concurrency", type=int, default=6)
     evaluate.add_argument("--seed", type=int, default=1729)
     evaluate.add_argument("--budget-usd", type=float, default=5.0)
+    evaluate.add_argument("--model", choices=sorted(MODELS), default=DEFAULT_MODEL)
+    evaluate.add_argument("--phase", type=int, choices=sorted(PHASE_CAPS), default=1)
+    evaluate.add_argument("--ledger", type=Path, default=Path("runs/spend-ledger.jsonl"))
     evaluate.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
@@ -45,6 +49,9 @@ def main() -> None:
                     args.concurrency,
                     args.seed,
                     args.budget_usd,
+                    args.model,
+                    args.phase,
+                    args.ledger,
                 )
             )
             passed = sum(row["grade"]["passed"] for row in results)

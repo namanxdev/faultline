@@ -40,3 +40,20 @@ def test_report_reproduces_jsonl_and_keeps_task_groups(tmp_path):
     assert report == render(rows)
     assert "| test | A | baseline | 1/2 | 2 | 1.000000 | 0.000000 |" in report
     assert "| test | B | baseline | 1/1 | 2 |" not in report
+
+
+def test_models_are_reported_separately():
+    rows = [
+        {
+            "agent": "llm",
+            "model": model,
+            "ticket_id": "A",
+            "drift": "baseline",
+            "grade": {"passed": model == "m1", "failure_tags": []},
+            "usage": {"cost_usd": 0, "prompt_tokens": 0, "completion_tokens": 0},
+        }
+        for model in ("m1", "m2")
+    ]
+    report = render(rows)
+    assert "| llm (m1) | A | baseline | 1/1 | 1 |" in report
+    assert "| llm (m2) | A | baseline | 0/1 | 1 |" in report
