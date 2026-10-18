@@ -39,8 +39,9 @@ sequenceDiagram
 2. `environment.py` reads and writes records. It applies the selected fault.
 3. `server.py` exposes seven functions through the official MCP SDK.
 4. `client.py` records tool calls. It converts tool errors to Python exceptions.
-5. `agents.py` holds the reference, null, and hack agents.
-6. `llm.py` sends messages and tool schemas to OpenAI through LiteLLM.
+5. `agents.py` holds the reference, oracle, null, and hack agents.
+6. `llm.py` sends messages and tool schemas to a registered model through LiteLLM.
+   It also holds the model registry, the run budget, and the phase spend ledger.
 7. `runner.py` gives each trial a new process and database copy.
 8. `grader.py` compares the final records with the required outcome.
 9. `report.py` calculates the metrics from the saved episode records.
@@ -168,3 +169,104 @@ No. A hosted model can change.
 We record seeds, the model snapshot, versions, settings, and response fingerprints.
 We can regenerate the report exactly from saved episode records.
 We cannot promise identical responses from a later API run.
+
+## Phase 1 completion: oracle, models, and spend
+
+The project is now named faultline.
+This part adds four items.
+The oracle agent proves that each task can be solved.
+The `--model` option selects a model from a registry.
+A ledger limits spend across runs.
+The runner reports the real error class.
+
+```mermaid
+flowchart TD
+    S[Read live tool schemas] --> K[Find the order argument name]
+    K --> P[Read policy and ticket, retry if the error says retry]
+    P --> O[Read the order]
+    O --> D{Refund due?}
+    D -- No --> U[Set status and note]
+    D -- Yes --> W[Issue refund]
+    W -- Success --> U
+    W -- Error --> C[Read the order again]
+    C -- Refund exists --> U
+    C -- No refund --> W
+```
+
+## Hard decision 4: The oracle uses only the API
+
+The oracle must not read the `DRIFT` value.
+If it did, it would prove nothing about the API.
+It reads the tool schemas to find the argument name.
+It retries a read only when the error text says to retry.
+It never repeats a refund without a new read of the order.
+So each passed cell shows that a real agent can solve that task.
+The reference agent stays brittle, as the brief requires.
+
+## Hard decision 5: Pin one provider on OpenRouter
+
+OpenRouter can send one model to several hosts.
+Hosts can use different weights or quantization.
+That difference adds noise between trials.
+pass^k measures repeated success, so noise changes the result.
+We set `provider.only` to one host and turn fallbacks off.
+A request fails if that host is not available.
+We record the host that served each response.
+
+We do not set `require_parameters`.
+That option routes only to hosts that list every parameter.
+The OpenAI host does not list `parallel_tool_calls` for this model.
+The option could reject every route.
+The runner also enforces one tool call per step on its own.
+
+## Hard decision 6: Count a run as spent until it settles
+
+The ledger writes the full run budget before the first request.
+After the run, it writes the actual spend.
+The phase total uses the actual spend if it exists.
+Otherwise it uses the full budget.
+A crashed run cannot hide spend that it already made.
+This rule can overcount. It cannot undercount.
+
+## Five more interview questions
+
+### 6. Why does the oracle matter if the reference already passes baseline?
+
+The reference fails under three drifts on purpose.
+Without the oracle, a failing cell has two causes.
+The agent can be weak, or the task can be impossible.
+The oracle removes the second cause.
+Later phases also need oracle trajectories for supervised training.
+
+### 7. How does the oracle avoid a double refund?
+
+It catches the error from `issue_refund`.
+Then it reads the order again.
+If `refunded_amount` is above zero, it stops.
+It repeats the refund only if no refund exists.
+A test checks that it calls `issue_refund` exactly once.
+
+### 8. Why use the cost that OpenRouter bills instead of list prices?
+
+The billed cost is the real charge.
+List prices can omit fees or discounts.
+The budget still reserves money from list prices before each request.
+So the reservation stays conservative.
+
+### 9. Why record the leaf error and not the ExceptionGroup?
+
+The MCP SDK runs work in task groups.
+Task groups wrap errors in an `ExceptionGroup`.
+That name hides the cause.
+The runner unwraps single-error groups and reports the inner class.
+It still stores only the class name, not the message.
+Messages from providers can contain request data.
+
+### 10. What can a state-only grader not detect?
+
+It cannot see the order of actions.
+It cannot see an action that was later undone.
+It cannot see a skipped read if the final state is correct.
+For example, an agent can skip the policy read and use a remembered policy.
+On this data, the final state is the same.
+The `policy_v4` drift in Phase 2 makes that shortcut fail.

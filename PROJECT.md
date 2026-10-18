@@ -89,7 +89,7 @@ Acceptance:
 
 1. **Procedural tasks.**
    - Generate tickets from seeded templates. Vary dates, totals, policy edge cases (day 30 vs day 31, exactly $200 vs $200.01, partial prior refunds), injection wording and noise.
-   - Each generated task carries its expected end state, computed by the reference solver.
+   - Each generated task carries its expected end state, computed by the reference solver. (Phase 1 note: the generator should record the intended outcome from its template parameters, and the drift-robust `oracle` agent should cross-check it. If the solver alone defined success, a solver bug could not be detected.)
    - Generate splits: `train` (≥300), `dev` (50), `test` (100). Use different seeds per split, and keep some perturbation combinations held out of `train`.
 2. **More perturbations.** Each one gets its own module, its own tests and a one-line rationale.
    - `rate_limit_429`: Retry-After header. A correct agent waits.
@@ -105,8 +105,21 @@ Acceptance:
 5. **Packaging:**
    - `faultline` installs with `uv`.
    - The README shows a 3-command quickstart, the results table and an architecture diagram.
+6. **Near-miss agents (grader sensitivity).** For each task template, add agents that each skip exactly one required step and otherwise act correctly. All must score 0, as tests.
+   - Required steps are the ones that change final state, or that must happen to avoid a wrong state: issue the refund, set the status, leave the note, escalate instead of refunding, re-read state before retrying an ambiguous write, ignore the injected amount.
+   - Skipping a pure read (for example `get_refund_policy` with a hard-coded policy) leaves the same final state. A state-only grader passes it by design (§3 guardrail). Don't count such skips as near-misses; record them as a known limit.
+7. **Difficulty calibration.** Add a `calibrate` command. It runs a cheap model via OpenRouter, k=8 per task × drift, and reports pass rates. Tag each task: `too_easy` (>30%), `calibrated` (10–30%), `too_hard` (<10%). The `train` split must be mostly calibrated. Report a before/after table: tag counts per split as generated, then after filtering or regenerating.
+   - Open: define "mostly". Proposal: at least 70% of `train` tasks `calibrated`.
+   - Open: at k=8, pass rates come in steps of 12.5%. `calibrated` means 1–2 of 8 and `too_hard` means 0 of 8. A task with a true rate of 20% scores 0/8 about 17% of the time. Treat tags as noisy and log k with each tag.
+   - **Open: Phase 2 has no API budget.** Calibrating every task (≈450 tasks × ≈5 drifts × 8 ≈ 18k episodes) costs roughly $45 on `gpt-4.1-nano` and $180 on `gpt-4.1-mini`. Proposal: calibrate a fixed sample of tasks per template and drift, under a Phase 2 cap that Naman sets. The spend ledger refuses Phase 2 until then.
 
-Acceptance: all perturbations have tests; reference agent 100% on baseline in both domains; null and hack agents fail; v0.1 tagged.
+Acceptance: all perturbations have tests; reference agent 100% on baseline in both domains; the oracle agent 100% on every task × drift; null, hack, and near-miss agents fail; calibration table reported; v0.1 tagged.
+
+### Phase 2.5: Harbor port
+
+- Export each task as a Harbor task folder (`task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, `solution/`). The container installs faultline and serves the drifted MCP tools over Streamable HTTP. `test.sh` runs the state grader and writes the reward. `solution/` runs the oracle.
+- Purpose: evaluate agent harnesses (Claude Code, Codex CLI, OpenHands) as well as raw models. The harnesses need a shell, so a container is required here and nowhere else.
+- **VERIFY** the current Harbor task format and its MCP configuration before writing code. Do not publish to the Harbor registry without Naman's OK.
 
 ### Phase 3: ecosystem ports (target 2 Nov)
 
