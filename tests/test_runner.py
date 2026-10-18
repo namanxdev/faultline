@@ -73,3 +73,9 @@ def test_json_escaped_secret_is_redacted_without_breaking_json(monkeypatch):
     secret = 'example-quote"and-backslash\\secret'
     monkeypatch.setenv("EXAMPLE_SECRET", secret)
     assert json.loads(redact(json.dumps({"content": secret}))) == {"content": "[REDACTED]"}
+
+
+async def test_unknown_notes_variant_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="notes"):
+        await run(tmp_path / "notes", agent="llm", notes="helpful")
+    assert not (tmp_path / "notes").exists()

@@ -21,8 +21,13 @@ def render(episodes: list[dict]) -> str:
     groups = defaultdict(list)
     for episode in episodes:
         # Different models must never share an estimate, even under the same agent name.
-        model = episode.get("model")
-        agent = f"{episode['agent']} ({model})" if model else episode["agent"]
+        # Prompt variants are separate conditions too. Phase 1 records have no notes field.
+        label = ", ".join(
+            filter(
+                None, [episode.get("model"), episode.get("notes") and f"{episode['notes']} notes"]
+            )
+        )
+        agent = f"{episode['agent']} ({label})" if label else episode["agent"]
         groups[(agent, episode["ticket_id"], episode["drift"])].append(episode)
     passed = sum(e["grade"]["passed"] for e in episodes)
     cost = sum(e["usage"]["cost_usd"] for e in episodes)

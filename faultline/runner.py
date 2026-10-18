@@ -17,7 +17,16 @@ from faultline.client import ToolClient
 from faultline.db import TICKET_IDS, seed_database, snapshot
 from faultline.environment import DRIFTS
 from faultline.grader import grade
-from faultline.llm import DEFAULT_MODEL, MODELS, PHASE_CAPS, Budget, Ledger, Usage, run_llm
+from faultline.llm import (
+    DEFAULT_MODEL,
+    MODELS,
+    NOTES,
+    PHASE_CAPS,
+    Budget,
+    Ledger,
+    Usage,
+    run_llm,
+)
 from faultline.report import write_report
 
 AGENTS = ("reference", "oracle", "null", "refund_all", "close_all", "resolve_all", "llm")
@@ -56,6 +65,7 @@ async def run_trial(
     seed: int,
     budget: Budget,
     model: str | None,
+    notes: str | None,
 ) -> dict:
     episode_id = f"{agent}-{ticket_id}-{drift}-{trial}"
     directory = root / "trials" / episode_id
@@ -86,7 +96,7 @@ async def run_trial(
                 protocol = connection.protocol_version
                 client = ToolClient(connection, transcript)
                 if agent == "llm":
-                    await run_llm(client, ticket_id, seed, budget, usage, model)
+                    await run_llm(client, ticket_id, seed, budget, usage, model, notes)
                 elif agent in ("reference", "oracle", "null"):
                     await getattr(agents, agent)(client, ticket_id)
                 else:
@@ -104,6 +114,7 @@ async def run_trial(
         "seed": seed,
         "protocol_version": protocol,
         "model": model,
+        "notes": notes,
         "usage": asdict(usage),
         "grade": grade(before, db_path, ticket_id).to_dict(),
         "error": error,
@@ -125,6 +136,7 @@ async def run(
     model: str = DEFAULT_MODEL,
     phase: int = 1,
     ledger: Path = Path("runs/spend-ledger.jsonl"),
+    notes: str = "stale",
 ) -> list[dict]:
     if agent not in AGENTS or not drifts or any(d not in DRIFTS for d in drifts):
         raise ValueError("Unknown agent or drift")
@@ -132,7 +144,10 @@ async def run(
         raise ValueError("Duplicate drifts would overwrite trial artifacts")
     if trials < 1 or concurrency < 1:
         raise ValueError("Trials and concurrency must be positive")
+    if notes not in NOTES:
+        raise ValueError(f"Unknown notes variant {notes}")
     model = model if agent == "llm" else None
+    notes = notes if agent == "llm" else None
     if model is not None:
         if model not in MODELS:
             raise ValueError(f"Unknown model {model}; add it to MODELS with verified prices")
@@ -163,6 +178,7 @@ async def run(
             "budget_usd": budget_usd,
             "model": model,
             "provider_params": MODELS[model].params if model else None,
+            "notes": notes,
             "phase": phase,
             "versions": {p: version(p) for p in ("mcp", "litellm")},
             "python": sys.version,
@@ -175,7 +191,7 @@ async def run(
     async def limited(ticket_id: str, drift: str, trial: int, trial_seed: int):
         async with semaphore:
             result = await run_trial(
-                output, seed_path, agent, ticket_id, drift, trial, trial_seed, budget, model
+                output, seed_path, agent, ticket_id, drift, trial, trial_seed, budget, model, notes
             )
             # No await between open and close: one event-loop writer at a time.
             with (output / "episodes.jsonl").open("a", encoding="utf-8") as stream:

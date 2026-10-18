@@ -57,3 +57,21 @@ def test_models_are_reported_separately():
     report = render(rows)
     assert "| llm (m1) | A | baseline | 1/1 | 1 |" in report
     assert "| llm (m2) | A | baseline | 0/1 | 1 |" in report
+
+
+def test_prompt_variants_are_reported_separately():
+    rows = [
+        {
+            "agent": "llm",
+            "model": "m1",
+            "notes": notes,
+            "ticket_id": "A",
+            "drift": "baseline",
+            "grade": {"passed": notes == "neutral", "failure_tags": []},
+            "usage": {"cost_usd": 0, "prompt_tokens": 0, "completion_tokens": 0},
+        }
+        for notes in ("stale", "neutral")
+    ]
+    report = render(rows)
+    assert "| llm (m1, neutral notes) | A | baseline | 1/1 | 1 |" in report
+    assert "| llm (m1, stale notes) | A | baseline | 0/1 | 1 |" in report
