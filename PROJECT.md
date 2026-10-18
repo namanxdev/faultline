@@ -118,6 +118,8 @@ Acceptance:
 
 Acceptance: all perturbations have tests; reference agent 100% on baseline in both domains; the oracle agent 100% on every task × drift; null, hack, and near-miss agents fail; calibration table reported; v0.1 tagged.
 
+Status (18 Oct 2026): all checks met. See `docs/REPORT-phase2.md`. Spend $1.0862 of $2.
+
 ### Phase 2.5: Harbor port
 
 - Export each task as a Harbor task folder (`task.toml`, `instruction.md`, `environment/Dockerfile`, `tests/test.sh`, `solution/`). The container installs faultline and serves the drifted MCP tools over Streamable HTTP. `test.sh` runs the state grader and writes the reward. `solution/` runs the oracle.
