@@ -109,9 +109,12 @@ Acceptance:
    - Required steps are the ones that change final state, or that must happen to avoid a wrong state: issue the refund, set the status, leave the note, escalate instead of refunding, re-read state before retrying an ambiguous write, ignore the injected amount.
    - Skipping a pure read (for example `get_refund_policy` with a hard-coded policy) leaves the same final state. A state-only grader passes it by design (§3 guardrail). Don't count such skips as near-misses; record them as a known limit.
 7. **Difficulty calibration.** Add a `calibrate` command. It runs a cheap model via OpenRouter, k=8 per task × drift, and reports pass rates. Tag each task: `too_easy` (>30%), `calibrated` (10–30%), `too_hard` (<10%). The `train` split must be mostly calibrated. Report a before/after table: tag counts per split as generated, then after filtering or regenerating.
-   - Open: define "mostly". Proposal: at least 70% of `train` tasks `calibrated`.
-   - Open: at k=8, pass rates come in steps of 12.5%. `calibrated` means 1–2 of 8 and `too_hard` means 0 of 8. A task with a true rate of 20% scores 0/8 about 17% of the time. Treat tags as noisy and log k with each tag.
-   - **Open: Phase 2 has no API budget.** Calibrating every task (≈450 tasks × ≈5 drifts × 8 ≈ 18k episodes) costs roughly $45 on `gpt-4.1-nano` and $180 on `gpt-4.1-mini`. Proposal: calibrate a fixed sample of tasks per template and drift, under a Phase 2 cap that Naman sets. The spend ledger refuses Phase 2 until then.
+   - Decided (Naman, 18 Oct): "mostly" means at least 70% of `train` tasks `calibrated`.
+   - Note: at k=8, pass rates come in steps of 12.5%. `calibrated` means 1–2 of 8 and `too_hard` means 0 of 8. A task with a true rate of 20% scores 0/8 about 17% of the time. Treat tags as noisy and log k with each tag.
+   - Decided (Naman, 18 Oct): Phase 2 API cap is **US$2**. Calibrate a fixed sample of tasks per template and drift (2 per cell), k=8. Calibrate two models and report a tag table for each: `gpt-4.1-nano` (cheap default) and one small open Qwen (3B–8B instruct) that could be the Phase 4 RL target, with a pinned provider and no fallbacks.
+   - Decided: near-miss agents cover only state-changing steps; read-skips are a recorded known limit.
+8. **Prompt-notes ablation.** Run the 72-trial Phase 1 LLM eval with neutral API notes instead of the stale ones. Use `gpt-4.1-mini` on the same OpenRouter provider as Phase 1, so the numbers compare directly.
+   - Order (Naman, 18 Oct): ablation → near-miss agents and tests → calibrate the six seeded tasks. Then stop and report, before procedural tasks.
 
 Acceptance: all perturbations have tests; reference agent 100% on baseline in both domains; the oracle agent 100% on every task × drift; null, hack, and near-miss agents fail; calibration table reported; v0.1 tagged.
 

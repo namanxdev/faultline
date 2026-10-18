@@ -5,7 +5,8 @@ Agents process refund tickets through MCP tools. A grader checks the final SQLit
 state: the exact refund, ticket status, note, and all unrelated records.
 
 Phase 1 is complete: six seeded tasks, four drifts, scripted gates, and one
-72-trial LLM evaluation.
+72-trial LLM evaluation. Phase 2 is in progress: a prompt-notes ablation, near-miss
+agents, and calibration are done ([checkpoint report](docs/REPORT-phase2.md)).
 
 ## Quickstart
 
@@ -89,6 +90,13 @@ tickets while assigned only one. Targeted over-refund, split-refund, missing
 action, wrong-status, history-tampering, and unrelated-write tests also fail.
 This is evidence for those attacks, not a proof against every possible exploit.
 
+**Near-miss agents** test grader sensitivity. Each is the oracle minus exactly one
+required step: the refund, the status, the note, an eligibility check (window, prior
+refund, escalation), the re-read after an ambiguous write, or ignoring the customer's
+requested amount. All 22 on the six tasks score 0, each with its expected failure tag.
+Known limit, also tested: skipping the policy read with a remembered policy passes,
+because the final state is the same.
+
 ## LLM evaluation
 
 Place `OPENROUTER_API_KEY` (or `OPENAI_API_KEY` for the direct OpenAI model) in
@@ -110,6 +118,9 @@ contains stale API v1 notes. Tool errors return to the model as `ERROR: ...`.
 |---|---|---|---|
 | `openrouter/openai/gpt-4.1-mini` (default) | `OPENROUTER_API_KEY` | `provider.only = ["openai"]`, fallbacks off | $0.40 / $1.60 |
 | `openai/gpt-4.1-mini-2025-04-14` | `OPENAI_API_KEY` | Direct, standard tier | $0.40 / $1.60 |
+| `openrouter/openai/gpt-4.1-nano` (calibration default) | `OPENROUTER_API_KEY` | `provider.only = ["openai"]`, fallbacks off | $0.10 / $0.40 |
+| `openrouter/qwen/qwen-2.5-7b-instruct` | `OPENROUTER_API_KEY` | `provider.only = ["phala"]`, fallbacks off | $0.10 / $0.20 |
+| `openrouter/qwen/qwen3-vl-8b-instruct` | `OPENROUTER_API_KEY` | `provider.only = ["parasail"]`, fallbacks off | $0.25 / $0.75 |
 
 OpenRouter can serve one model from several hosts, with different weights,
 quantization, or tool-call handling. That would add noise across repeated
@@ -152,13 +163,35 @@ Three trials per cell are few. Treat each per-task estimate as noisy. This is on
 model on six fixed tasks, not a general claim about model reliability.
 [Report](docs/evidence/llm/report.md), [episodes](docs/evidence/llm/episodes.jsonl).
 
+### Ablation: stale vs neutral notes
+
+`--notes neutral` replaces the stale API v1 notes with one neutral line. Same model,
+provider, seeds, and tasks: 54/72 passed (stale: 59/72; Fisher exact p = 0.42).
+Every trial that got the ambiguous 504 still repeated the refund at once, with no
+re-read: 9 of 9, as with stale notes. The double refund is the model's default
+behavior, not a response to the stale advice.
+[Report](docs/evidence/ablation-neutral/report.md).
+
+### Calibration
+
+```sh
+uv run faultline calibrate --model openrouter/openai/gpt-4.1-nano --k 8 --budget-usd 0.4 --output runs/cal
+```
+
+This runs k trials per task × drift and writes `calibration.md`. Tags: `too_easy` (>30%),
+`calibrated` (10–30%), `too_hard` (<10%). On the six seeded tasks at k=8, both
+gpt-4.1-nano and qwen-2.5-7b-instruct tag 13 cells too_easy, 3 calibrated, and
+8 too_hard, but no cell is calibrated for both. Neither re-read state after an
+ambiguous write. [nano](docs/evidence/calibrate-nano/calibration.md),
+[Qwen](docs/evidence/calibrate-qwen7b/calibration.md).
+
 The shared budget reserves a conservative prompt bound plus the maximum output
 cost before each call. Reservations include concurrent requests. Automatic API
 retries are disabled. Unknown-cost failures keep their reservations. Settled cost
 uses the provider-billed amount when OpenRouter reports one, and list prices
 otherwise. Cached-input discounts are not subtracted from list-price estimates.
 
-Spend also has a per-phase cap across runs: $5 for Phase 1 and $25 for Phase 3,
+Spend also has a per-phase cap across runs: $5 for Phase 1, $2 for Phase 2, and $25 for Phase 3,
 selected with `--phase`. A local ledger (`runs/spend-ledger.jsonl`, or `--ledger`)
 counts each run's full budget until the run records its actual spend. A crashed
 run therefore never frees money it may already have spent. Other phases have no
@@ -227,8 +260,8 @@ The main difference is side-effect safety graded from state. ReliabilityBench
 also grades end state. faultline additionally fails any run that changes a
 record outside the assigned ticket. Its server deliberately allows unsafe writes,
 so double refunds, over-refunds, and blanket actions show up in the database.
-The reward-hacking gates (null, blanket-hack, and planned near-miss agents)
-test the grader itself. The other two benchmarks are far larger today.
+The reward-hacking gates (null, blanket-hack, and 22 near-miss agents that each
+skip one required step) test the grader itself. The other two benchmarks are far larger today.
 
 ## Development and limits
 

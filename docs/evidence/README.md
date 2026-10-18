@@ -27,3 +27,22 @@ uv run faultline report docs/evidence/reference/episodes.jsonl
 
 Seeds, SDK versions, and model settings are recorded in the configuration files.
 The results are evidence for the six specified cases and tested attacks only.
+
+# Phase 2 evidence (checkpoint 1)
+
+Completed on 2026-10-18. Total Phase 2 spend: $0.4154 of the $2 cap, billed by OpenRouter.
+Transcript paths are relative to `runs/p2-<name>`.
+
+| Run | Trials | Passed | Artifacts |
+|---|---:|---:|---|
+| Ablation: gpt-4.1-mini, neutral notes, four drifts | 72 | 54 | [Report](ablation-neutral/report.md), [episodes](ablation-neutral/episodes.jsonl) |
+| Calibration: gpt-4.1-nano, k=8, four drifts | 192 | 82 | [Calibration](calibrate-nano/calibration.md), [report](calibrate-nano/report.md), [episodes](calibrate-nano/episodes.jsonl) |
+| Calibration: qwen-2.5-7b-instruct, k=8, four drifts | 192 | 74 | [Calibration](calibrate-qwen7b/calibration.md), [report](calibrate-qwen7b/report.md), [episodes](calibrate-qwen7b/episodes.jsonl) |
+| Smoke: qwen-2.5-7b-instruct, baseline | 6 | 3 | [Report](smoke-qwen-2.5-7b/report.md) |
+| Smoke: qwen3-vl-8b-instruct, baseline (rejected: provider errors) | 6 | 5 | [Report](smoke-qwen3-vl-8b/report.md) |
+
+Re-tag a calibration from saved records, at no cost:
+
+```sh
+uv run faultline calibrate --episodes docs/evidence/calibrate-nano/episodes.jsonl
+```
