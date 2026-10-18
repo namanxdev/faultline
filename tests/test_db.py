@@ -1,6 +1,6 @@
 import pytest
 
-from drift_gym.db import cents, dollars, seed_database, snapshot
+from faultline.db import cents, dollars, seed_database, snapshot
 
 
 def test_seed_is_deterministic_and_refuses_overwrite(database, tmp_path):

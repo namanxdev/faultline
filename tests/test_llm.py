@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from drift_gym.environment import ToolFailure
-from drift_gym.llm import Budget, BudgetExceeded, Usage, run_llm
+from faultline.environment import ToolFailure
+from faultline.llm import PHASE_CAPS, Budget, BudgetExceeded, Ledger, Usage, run_llm
 
 
 async def test_budget_reservations_are_atomic_and_fail_closed():
@@ -178,6 +178,88 @@ async def test_real_litellm_openai_adapter_with_local_http_transport(monkeypatch
 
         monkeypatch.setattr(litellm, "acompletion", completion)
         usage = Usage()
-        await run_llm(FakeTools(), "T-1001", 123, Budget(), usage)
+        await run_llm(FakeTools(), "T-1001", 123, Budget(), usage, "openai/gpt-4.1-mini-2025-04-14")
     assert len(requests) == 1
+    assert requests[0]["service_tier"] == "default"
+    assert requests[0]["parallel_tool_calls"] is False
     assert usage.steps == 1 and usage.completion_tokens == 20
+
+
+def test_phase_caps_bound_the_run_budget():
+    assert Budget(25, PHASE_CAPS[3]).limit == 25
+    with pytest.raises(ValueError):
+        Budget(5.01, PHASE_CAPS[1])
+
+
+async def test_real_litellm_openrouter_adapter_pins_provider_and_uses_billed_cost(monkeypatch):
+    import json
+
+    import httpx
+    import litellm
+    from litellm.llms.custom_httpx.http_handler import AsyncHTTPHandler
+
+    requests = []
+
+    async def respond(request):
+        body = json.loads(request.content)
+        requests.append((str(request.url), body))
+        return httpx.Response(
+            200,
+            json={
+                "id": "local-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "openai/gpt-4.1-mini",
+                "provider": "OpenAI",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "done"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": 20,
+                    "total_tokens": 120,
+                    "cost": 0.000123,
+                },
+            },
+        )
+
+    handler = AsyncHTTPHandler()
+    handler.client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    real_completion = litellm.acompletion
+
+    async def completion(**kwargs):
+        return await real_completion(**kwargs, client=handler, api_key="local-placeholder")
+
+    monkeypatch.setattr(litellm, "acompletion", completion)
+    usage, budget = Usage(), Budget()
+    await run_llm(FakeTools(), "T-1001", 123, budget, usage, "openrouter/openai/gpt-4.1-mini")
+    url, body = requests[0]
+    assert url == "https://openrouter.ai/api/v1/chat/completions"
+    assert body["model"] == "openai/gpt-4.1-mini"
+    assert body["provider"] == {"only": ["openai"], "allow_fallbacks": False}
+    assert body["parallel_tool_calls"] is False and body["temperature"] == 0.7
+    assert "service_tier" not in body
+    assert usage.cost_usd == pytest.approx(0.000123)
+    assert budget.committed == Decimal("0.000123")
+    assert usage.provider == "OpenAI"
+
+
+def test_ledger_enforces_phase_cap_across_runs(tmp_path):
+    ledger = Ledger(tmp_path / "ledger.jsonl", 1)
+    ledger.reserve("a", 4.0)
+    with pytest.raises(ValueError, match="Phase 1 cap"):
+        ledger.reserve("b", 1.5)
+    ledger.settle("a", 0.75)
+    ledger.reserve("b", 4.0)
+    assert ledger.spent() == pytest.approx(4.75)
+    # Other phases keep separate totals.
+    assert Ledger(tmp_path / "ledger.jsonl", 3).spent() == 0
+
+
+def test_ledger_rejects_phases_without_api_budget(tmp_path):
+    with pytest.raises(ValueError, match="phase 2"):
+        Ledger(tmp_path / "ledger.jsonl", 2)

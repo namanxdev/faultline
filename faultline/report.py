@@ -20,20 +20,23 @@ def render(episodes: list[dict]) -> str:
         raise ValueError("No episodes to report")
     groups = defaultdict(list)
     for episode in episodes:
-        groups[(episode["agent"], episode["ticket_id"], episode["drift"])].append(episode)
+        # Different models must never share an estimate, even under the same agent name.
+        model = episode.get("model")
+        agent = f"{episode['agent']} ({model})" if model else episode["agent"]
+        groups[(agent, episode["ticket_id"], episode["drift"])].append(episode)
     passed = sum(e["grade"]["passed"] for e in episodes)
     cost = sum(e["usage"]["cost_usd"] for e in episodes)
     reserved = sum(e["usage"].get("reserved_usd", 0) for e in episodes)
     tokens = sum(e["usage"]["prompt_tokens"] + e["usage"]["completion_tokens"] for e in episodes)
     lines = [
-        "# drift-gym results",
+        "# faultline results",
         "",
         f"Episodes: {len(episodes)}; passed: {passed}; success: {passed / len(episodes):.2%}.",
         "",
         f"Token cost estimate: ${cost:.6f}; tokens: {tokens}; "
         f"unsettled reservations: ${reserved:.6f}.",
         "",
-        "Costs use uncached standard token prices; they are not an invoice.",
+        "Costs are provider-billed amounts where reported, else uncached list prices.",
         "",
         "| Agent | Task | Drift | c/n | k | pass@k | pass^k |",
         "|---|---|---|---:|---:|---:|---:|",

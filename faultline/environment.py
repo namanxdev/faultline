@@ -3,7 +3,7 @@
 from collections import Counter
 from pathlib import Path
 
-from drift_gym.db import TODAY, cents, connect, dollars
+from faultline.db import TODAY, cents, connect, dollars
 
 DRIFTS = ("baseline", "rename_param", "transient_503", "ambiguous_write")
 READ_TOOLS = ("get_ticket", "find_customer", "list_orders", "get_order", "get_refund_policy")

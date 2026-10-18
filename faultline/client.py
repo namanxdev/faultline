@@ -4,7 +4,7 @@ import json
 
 from mcp import Client
 
-from drift_gym.environment import ToolFailure
+from faultline.environment import ToolFailure
 
 
 class ToolClient:

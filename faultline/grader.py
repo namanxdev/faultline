@@ -3,7 +3,7 @@
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from drift_gym.db import snapshot
+from faultline.db import snapshot
 
 # Independent golden answers prevent a solver bug from defining its own success.
 EXPECTED = {

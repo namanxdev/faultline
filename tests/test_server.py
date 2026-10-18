@@ -7,7 +7,7 @@ import sys
 import httpx
 from mcp import Client
 
-from drift_gym.client import ToolClient
+from faultline.client import ToolClient
 
 
 async def test_streamable_http_round_trip(database):
@@ -18,7 +18,7 @@ async def test_streamable_http_round_trip(database):
         [
             sys.executable,
             "-m",
-            "drift_gym.server",
+            "faultline.server",
             "--db",
             str(database),
             "--http",

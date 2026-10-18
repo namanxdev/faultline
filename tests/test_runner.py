@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from drift_gym.db import snapshot
-from drift_gym.report import render
-from drift_gym.runner import redact, run
+from faultline.db import snapshot
+from faultline.report import render
+from faultline.runner import error_name, redact, run
 
 
 async def test_real_stdio_trials_are_isolated_and_report_matches(tmp_path):
@@ -27,11 +27,41 @@ async def test_real_stdio_trials_are_isolated_and_report_matches(tmp_path):
         await run(output)
 
 
-async def test_missing_key_fails_before_creating_artifacts(tmp_path, monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(ValueError, match="OPENAI_API_KEY"):
-        await run(tmp_path / "no-key", agent="llm")
+@pytest.mark.parametrize(
+    ("model", "key"),
+    [
+        ("openrouter/openai/gpt-4.1-mini", "OPENROUTER_API_KEY"),
+        ("openai/gpt-4.1-mini-2025-04-14", "OPENAI_API_KEY"),
+    ],
+)
+async def test_missing_key_fails_before_creating_artifacts(tmp_path, monkeypatch, model, key):
+    monkeypatch.delenv(key, raising=False)
+    with pytest.raises(ValueError, match=key):
+        await run(tmp_path / "no-key", agent="llm", model=model)
     assert not (tmp_path / "no-key").exists()
+
+
+async def test_unknown_model_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="Unknown model"):
+        await run(tmp_path / "unknown", agent="llm", model="openrouter/some/unpriced-model")
+    assert not (tmp_path / "unknown").exists()
+
+
+async def test_ledger_refusal_leaves_no_run_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "local-placeholder")
+    ledger = tmp_path / "ledger.jsonl"
+    ledger.write_text(json.dumps({"phase": 1, "run": "old", "spent_usd": 4.5}) + "\n")
+    with pytest.raises(ValueError, match="Phase 1 cap"):
+        await run(tmp_path / "over", agent="llm", budget_usd=1, ledger=ledger)
+    assert not (tmp_path / "over").exists()
+
+
+def test_error_name_unwraps_task_group_errors():
+    nested = ExceptionGroup("outer", [ExceptionGroup("inner", [KeyError("x")])])
+    assert error_name(nested) == "KeyError"
+    two = ExceptionGroup("two", [KeyError(), TimeoutError()])
+    assert error_name(two) == "KeyError+TimeoutError"
+    assert error_name(ValueError()) == "ValueError"
 
 
 def test_secret_redaction(monkeypatch):
