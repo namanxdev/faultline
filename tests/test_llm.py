@@ -292,3 +292,35 @@ list_orders returns a bare list. If a write times out, retry the same write.
 def test_every_openrouter_model_pins_one_provider(model):
     routing = MODELS[model].params["extra_body"]["provider"]
     assert len(routing["only"]) == 1 and routing["allow_fallbacks"] is False
+
+
+async def test_itsm_prompt_and_tools_are_refreshed_each_step(monkeypatch):
+    import litellm
+
+    class ChangingTools(FakeTools):
+        async def schemas(self):
+            self.listed = getattr(self, "listed", 0) + 1
+            return [{"type": "function", "function": {"name": f"v{self.listed}"}}]
+
+    seen = []
+
+    async def completion(**kwargs):
+        seen.append(
+            (kwargs["messages"][0]["content"], kwargs["messages"][1]["content"], kwargs["tools"])
+        )
+        if len(seen) == 1:
+            call = {
+                "id": "c1",
+                "type": "function",
+                "function": {"name": "get_incident", "arguments": "{}"},
+            }
+            return response({"role": "assistant", "tool_calls": [call]})
+        return response({"role": "assistant", "content": "done"})
+
+    monkeypatch.setattr(litellm, "acompletion", completion)
+    tools = ChangingTools()
+    await run_llm(tools, "INC-1", 1, Budget(), Usage(), domain="itsm")
+    assert "ITSM policy" in seen[0][0] and "incident_id" in seen[0][0]
+    assert seen[0][1] == "Process incident INC-1."
+    assert seen[0][2][0]["function"]["name"] == "v1" and seen[1][2][0]["function"]["name"] == "v2"
+    assert {"tools": seen[1][2]} in tools.transcript
