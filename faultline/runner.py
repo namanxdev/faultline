@@ -12,13 +12,13 @@ from pathlib import Path
 
 from mcp import Client, StdioServerParameters
 
-from drift_gym import agents
-from drift_gym.client import ToolClient
-from drift_gym.db import TICKET_IDS, seed_database, snapshot
-from drift_gym.environment import DRIFTS
-from drift_gym.grader import grade
-from drift_gym.llm import MODEL, Budget, Usage, run_llm
-from drift_gym.report import write_report
+from faultline import agents
+from faultline.client import ToolClient
+from faultline.db import TICKET_IDS, seed_database, snapshot
+from faultline.environment import DRIFTS
+from faultline.grader import grade
+from faultline.llm import MODEL, Budget, Usage, run_llm
+from faultline.report import write_report
 
 AGENTS = ("reference", "null", "refund_all", "close_all", "resolve_all", "llm")
 
@@ -66,7 +66,7 @@ async def run_trial(
     env.update({"DRIFT": drift, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"})
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "drift_gym.server", "--db", str(db_path.resolve())],
+        args=["-m", "faultline.server", "--db", str(db_path.resolve())],
         env=env,
     )
     try:

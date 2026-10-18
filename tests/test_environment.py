@@ -1,7 +1,7 @@
 import pytest
 
-from drift_gym.db import snapshot
-from drift_gym.environment import READ_TOOLS, RefundTools, ToolFailure
+from faultline.db import snapshot
+from faultline.environment import READ_TOOLS, RefundTools, ToolFailure
 
 READ_ARGS = {
     "get_ticket": {"ticket_id": "T-1001"},

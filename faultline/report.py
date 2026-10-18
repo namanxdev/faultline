@@ -26,7 +26,7 @@ def render(episodes: list[dict]) -> str:
     reserved = sum(e["usage"].get("reserved_usd", 0) for e in episodes)
     tokens = sum(e["usage"]["prompt_tokens"] + e["usage"]["completion_tokens"] for e in episodes)
     lines = [
-        "# drift-gym results",
+        "# faultline results",
         "",
         f"Episodes: {len(episodes)}; passed: {passed}; success: {passed / len(episodes):.2%}.",
         "",

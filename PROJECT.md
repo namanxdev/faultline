@@ -1,6 +1,6 @@
-# drift-gym: build brief for Claude Code
+# faultline: build brief for Claude Code
 
-Owner: Naman Gupta (namanxdev). New public repo: `namanxdev/drift-gym`.
+Owner: Naman Gupta (namanxdev). New public repo: `namanxdev/faultline`.
 Written: 17 Oct 2026. Target: public v0.1 by 26 Oct, v1 with RL results by 16 Nov.
 
 ---
@@ -24,7 +24,7 @@ Written: 17 Oct 2026. Target: public v0.1 by 26 Oct, v1 with RL results by 16 No
 
 **An RL training and evaluation environment for tool-using agents, where the tools change underneath the agent.**
 
-Real agents call real APIs and MCP servers. Those servers rename parameters, return 503s, time out after a write, change their descriptions, and carry prompt injections in their data. Most benchmarks freeze the tools. drift-gym does not.
+Real agents call real APIs and MCP servers. Those servers rename parameters, return 503s, time out after a write, change their descriptions, and carry prompt injections in their data. Most benchmarks freeze the tools. faultline does not.
 
 It measures, and trains against, one question: **does the agent still finish the task correctly, with no side effects, when the tools drift?**
 
@@ -103,7 +103,7 @@ Acceptance:
    - Same grader style: final state plus no side effects.
 4. **Idempotency, done properly.** The server supports an optional `idempotency_key` on writes. Score agents that use it on `ambiguous_write` separately from agents that recover by reading state first. Document both strategies.
 5. **Packaging:**
-   - `drift_gym` installs with `uv`.
+   - `faultline` installs with `uv`.
    - The README shows a 3-command quickstart, the results table and an architecture diagram.
 
 Acceptance: all perturbations have tests; reference agent 100% on baseline in both domains; null and hack agents fail; v0.1 tagged.
@@ -112,7 +112,7 @@ Acceptance: all perturbations have tests; reference agent 100% on baseline in bo
 
 1. **`verifiers` environment (Prime Intellect).**
    - **VERIFY** the current `verifiers` API: `load_environment()`, multi-turn tool environment class, rubric API.
-   - Wrap drift-gym as an environment. The reward is the grader score, with an optional shaped component (+ for reading the policy first; − per extra write). Shaping must never let a hack beat a correct solution; add a test that proves this.
+   - Wrap faultline as an environment. The reward is the grader score, with an optional shaped component (+ for reading the policy first; − per extra write). Shaping must never let a hack beat a correct solution; add a test that proves this.
    - Run `prime env` validation locally. Do **not** push to the Hub until Naman approves.
 2. **Inspect task (UK AISI).**
    - `inspect_ai` task with a solver that uses the MCP tools and a scorer that wraps the grader.

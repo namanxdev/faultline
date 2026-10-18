@@ -1,5 +1,5 @@
 [project]
-name = "drift-gym"
+name = "faultline"
 version = "0.1.0"
 description = "Evaluate tool-using agents when APIs drift, using final database state."
 readme = "README.md"
@@ -11,8 +11,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-drift-gym = "drift_gym.cli:main"
-drift-gym-server = "drift_gym.server:main"
+faultline = "faultline.cli:main"
+faultline-server = "faultline.server:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=1", "ruff>=0.14"]

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from drift_gym.environment import ToolFailure
-from drift_gym.llm import Budget, BudgetExceeded, Usage, run_llm
+from faultline.environment import ToolFailure
+from faultline.llm import Budget, BudgetExceeded, Usage, run_llm
 
 
 async def test_budget_reservations_are_atomic_and_fail_closed():

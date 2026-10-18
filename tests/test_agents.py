@@ -1,12 +1,12 @@
 import pytest
 from mcp import Client
 
-from drift_gym import agents
-from drift_gym.client import ToolClient
-from drift_gym.db import TICKET_IDS, snapshot
-from drift_gym.environment import ToolFailure
-from drift_gym.grader import grade
-from drift_gym.server import create_server
+from faultline import agents
+from faultline.client import ToolClient
+from faultline.db import TICKET_IDS, snapshot
+from faultline.environment import ToolFailure
+from faultline.grader import grade
+from faultline.server import create_server
 
 
 @pytest.mark.parametrize("ticket", TICKET_IDS)

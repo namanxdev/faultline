@@ -1,4 +1,4 @@
-# drift-gym
+# faultline
 
 An evaluation environment for tool-using agents whose APIs change during work.
 Agents process refund tickets through MCP tools. A grader checks the final SQLite
@@ -13,8 +13,8 @@ Install [uv](https://docs.astral.sh/uv/) and Python 3.11 or later. From this che
 
 ```sh
 uv sync --locked
-uv run drift-gym run --agent reference --drifts baseline --trials 1 --output runs/quickstart
-uv run drift-gym report runs/quickstart/episodes.jsonl
+uv run faultline run --agent reference --drifts baseline --trials 1 --output runs/quickstart
+uv run faultline report runs/quickstart/episodes.jsonl
 ```
 
 `uv` installs into `.venv`. The existing checkout uses Python 3.12.12.
@@ -71,7 +71,7 @@ Six tasks, four conditions, three repetitions: 72 trials. Each condition has
 | transient_503 | 0/18 | 0% | 0.00 | 0.00 |
 | ambiguous_write | 9/18 | 50% | 0.50 | 0.50 |
 
-Reproduce with `uv run drift-gym run --agent reference --output runs/reference`.
+Reproduce with `uv run faultline run --agent reference --output runs/reference`.
 See [the recorded report](docs/evidence/reference/report.md) and
 [raw episode results](docs/evidence/reference/episodes.jsonl).
 
@@ -87,8 +87,8 @@ Place `OPENAI_API_KEY` in your environment or a local `.env` file; see
 [.env.example](.env.example). Git ignores `.env` and generated runs.
 
 ```sh
-uv run drift-gym run --agent llm --trials 3 --budget-usd 5 --output runs/openai-phase1
-uv run drift-gym report runs/openai-phase1/episodes.jsonl
+uv run faultline run --agent llm --trials 3 --budget-usd 5 --output runs/openai-phase1
+uv run faultline report runs/openai-phase1/episodes.jsonl
 ```
 
 This runs 72 trials through LiteLLM using `gpt-4.1-mini-2025-04-14`, temperature
@@ -114,14 +114,14 @@ seeds; report regeneration from saved episodes is deterministic.
 ## Serve MCP tools
 
 ```sh
-uv run drift-gym seed runs/manual.sqlite3
-uv run drift-gym-server --db runs/manual.sqlite3
+uv run faultline seed runs/manual.sqlite3
+uv run faultline-server --db runs/manual.sqlite3
 ```
 
 For Streamable HTTP:
 
 ```sh
-uv run drift-gym-server --db runs/manual.sqlite3 --http --port 8765
+uv run faultline-server --db runs/manual.sqlite3 --http --port 8765
 ```
 
 Endpoint: `http://127.0.0.1:8765/mcp`. Set `DRIFT` or pass `--drift` to select a

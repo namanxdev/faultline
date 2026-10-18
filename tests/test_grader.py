@@ -1,8 +1,8 @@
 import pytest
 
-from drift_gym.db import connect, snapshot
-from drift_gym.environment import RefundTools
-from drift_gym.grader import grade
+from faultline.db import connect, snapshot
+from faultline.environment import RefundTools
+from faultline.grader import grade
 
 
 def complete(tools, amount="49.99", status="resolved", note="Refund issued."):

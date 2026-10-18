@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from drift_gym.report import pass_metrics, render, write_report
+from faultline.report import pass_metrics, render, write_report
 
 
 @pytest.mark.parametrize(("n", "c", "k"), [(3, 0, 1), (3, 1, 2), (3, 2, 3), (6, 4, 2), (3, 3, 3)])

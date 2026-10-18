@@ -66,17 +66,17 @@ uv sync --locked
 uv run pytest -q
 uv run ruff check .
 uv run ruff format --check .
-uv run drift-gym run --agent reference --output runs/reference-replay
-uv run drift-gym run --agent null --drifts baseline --trials 1 --output runs/null-replay
-uv run drift-gym run --agent refund_all --drifts baseline --trials 1 --output runs/refund-all-replay
-uv run drift-gym run --agent close_all --drifts baseline --trials 1 --output runs/close-all-replay
-uv run drift-gym run --agent resolve_all --drifts baseline --trials 1 --output runs/resolve-all-replay
+uv run faultline run --agent reference --output runs/reference-replay
+uv run faultline run --agent null --drifts baseline --trials 1 --output runs/null-replay
+uv run faultline run --agent refund_all --drifts baseline --trials 1 --output runs/refund-all-replay
+uv run faultline run --agent close_all --drifts baseline --trials 1 --output runs/close-all-replay
+uv run faultline run --agent resolve_all --drifts baseline --trials 1 --output runs/resolve-all-replay
 ```
 
 Regenerate any checked-in report with, for example:
 
 ```sh
-uv run drift-gym report docs/evidence/reference/episodes.jsonl
+uv run faultline report docs/evidence/reference/episodes.jsonl
 ```
 
 ## Live documentation verification
@@ -105,7 +105,7 @@ and update its price bounds before any paid call. No fallback model is selected 
 ## Limits and remaining work
 
 1. Make `OPENAI_API_KEY` available in the environment or ignored `.env` file.
-2. Run `uv run drift-gym run --agent llm --output runs/openai-phase1 --budget-usd 5`.
+2. Run `uv run faultline run --agent llm --output runs/openai-phase1 --budget-usd 5`.
 3. Confirm all 72 episodes completed without provider or infrastructure errors.
    Compare `report.md` with a regeneration from `episodes.jsonl`. Record real cost,
    tokens, task/condition results, and failure tags. LLM task failures are valid results.

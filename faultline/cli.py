@@ -6,10 +6,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from drift_gym.db import seed_database
-from drift_gym.environment import DRIFTS
-from drift_gym.report import write_report
-from drift_gym.runner import AGENTS, run
+from faultline.db import seed_database
+from faultline.environment import DRIFTS
+from faultline.report import write_report
+from faultline.runner import AGENTS, run
 
 
 def main() -> None:

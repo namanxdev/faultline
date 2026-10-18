@@ -1,6 +1,6 @@
 import pytest
 
-from drift_gym.db import seed_database
+from faultline.db import seed_database
 
 
 @pytest.fixture

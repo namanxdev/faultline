@@ -6,8 +6,8 @@ import os
 from dataclasses import dataclass
 from decimal import Decimal
 
-from drift_gym.client import ToolClient
-from drift_gym.environment import ToolFailure
+from faultline.client import ToolClient
+from faultline.environment import ToolFailure
 
 # Use the locked package's metadata; tests and imports need no network requests.
 os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")

@@ -7,12 +7,12 @@ from pathlib import Path
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from drift_gym.environment import DRIFTS, RefundTools, ToolFailure
+from faultline.environment import DRIFTS, RefundTools, ToolFailure
 
 
 def create_server(path: str | Path, drift: str = "baseline") -> MCPServer:
     service = RefundTools(path, drift)
-    server = MCPServer("drift-gym", version="0.1.0", log_level="ERROR")
+    server = MCPServer("faultline", version="0.1.0", log_level="ERROR")
 
     def call(name: str, **args) -> dict:
         try:
@@ -79,7 +79,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     if not args.db.is_file():
-        parser.error("Database does not exist. Run drift-gym seed first.")
+        parser.error("Database does not exist. Run faultline seed first.")
     server = create_server(args.db, args.drift)
     if args.http:
         server.run(transport="streamable-http", host="127.0.0.1", port=args.port)

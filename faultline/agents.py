@@ -3,8 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
-from drift_gym.client import ToolClient
-from drift_gym.db import TICKET_IDS
+from faultline.client import ToolClient
+from faultline.db import TICKET_IDS
 
 
 async def reference(client: ToolClient, ticket_id: str) -> None:

@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from drift_gym.db import snapshot
-from drift_gym.report import render
-from drift_gym.runner import redact, run
+from faultline.db import snapshot
+from faultline.report import render
+from faultline.runner import redact, run
 
 
 async def test_real_stdio_trials_are_isolated_and_report_matches(tmp_path):

@@ -19,7 +19,7 @@ The [phase report](../REPORT-phase1.md) gives the commands that recreate them.
 Regenerate a report from saved records:
 
 ```sh
-uv run drift-gym report docs/evidence/reference/episodes.jsonl
+uv run faultline report docs/evidence/reference/episodes.jsonl
 ```
 
 Seeds, SDK versions, and model settings are recorded in the configuration files.
