@@ -173,6 +173,7 @@ async def run(
     notes: str = "stale",
     split: str = "seed",
     items: list[tuple[Task, str]] | None = None,
+    first: int | None = None,
 ) -> list[dict]:
     if split != "seed" and split not in SPLITS:
         raise ValueError(f"Unknown split {split}")
@@ -206,7 +207,7 @@ async def run(
         except ValueError:
             output.rmdir()
             raise
-    tasks = load(split)
+    tasks = load(split)[:first]  # Generated splits interleave templates, so a prefix is balanced.
     items = items or [(task, drift) for task in tasks for drift in drifts]
     seeds = {}
     for task, _ in items:
@@ -224,6 +225,7 @@ async def run(
             "drifts": drifts,
             "split": split,
             "items": len(items),
+            "first": first,
             "trials": trials,
             "concurrency": concurrency,
             "seed": seed,

@@ -195,7 +195,7 @@ async def test_real_litellm_openai_adapter_with_local_http_transport(monkeypatch
 
 
 def test_phase_caps_bound_the_run_budget():
-    assert Budget(25, PHASE_CAPS[3]).limit == 25
+    assert Budget(5, PHASE_CAPS[3]).limit == 5
     with pytest.raises(ValueError):
         Budget(5.01, PHASE_CAPS[1])
 

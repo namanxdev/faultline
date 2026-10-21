@@ -27,6 +27,7 @@ def main() -> None:
     evaluate = commands.add_parser("run")
     evaluate.add_argument("--agent", choices=AGENTS, default="reference")
     evaluate.add_argument("--split", choices=["seed", *SPLITS], default="seed")
+    evaluate.add_argument("--first", type=int, help="Use only the split's first N tasks")
     evaluate.add_argument("--drifts", nargs="+", choices=DRIFTS, help="Default: the split's")
     evaluate.add_argument("--trials", type=int, default=3)
     evaluate.add_argument("--concurrency", type=int, default=6)
@@ -103,6 +104,7 @@ def main() -> None:
                     args.ledger,
                     args.notes,
                     args.split,
+                    first=args.first,
                 )
             )
             passed = sum(row["grade"]["passed"] for row in results)
