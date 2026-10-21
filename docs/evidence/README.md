@@ -78,3 +78,14 @@ Completed on 2026-10-21. Total Phase 3 spend: $4.0818 of the $5 cap.
 | Inspect: 4 real samples, Haiku 5.5 | 4 | 4 | [Log](inspect-smoke/haiku-dev0000.eval) (open with `inspect view`) |
 
 Transcript paths in eval episodes are relative to `runs/p3-eval-<model>`.
+
+# Phase 2.5 evidence (Harbor port)
+
+Completed on 2026-10-21. No API spend.
+
+| Job | Trials | Result | Artifact |
+|---|---:|---|---|
+| Harbor `oracle`: test tasks 0–13 × 13 drifts, Docker | 182 | 182 × reward 1.0, 0 errors | [result.json](harbor/oracle-result.json) |
+| Harbor `nop`: same tasks | 182 | 182 × reward 0.0, 0 errors | [result.json](harbor/nop-result.json) |
+
+Check a job: `uv run python -m faultline.harbor check docs/evidence/harbor/oracle-result.json 1.0`.

@@ -42,13 +42,17 @@ CI runs them on Ubuntu and Windows, Python 3.11 and 3.12.
 - `faultline/inspect_task.py`: Inspect task; tools are the faultline MCP server over stdio.
 - `environments/faultline_vf/`: verifiers 0.4 taskset, its own package and lock
   (overrides mcp to 2.0.0; Linux only, verifiers imports fcntl). Test it in WSL or CI.
+- `faultline/harbor.py` + `harbor/`: Harbor export (`faultline harbor-export`), sidecar MCP
+  server, separate verifier. Rebuild `faultline-harbor:<version>` after code changes.
 - `faultline/llm.py`: model registry (`MODELS`), prompts, budget, phase spend ledger.
 - `faultline/runner.py`: fresh DB copy and fresh server process per trial.
 - `docs/evidence/`: checked-in results; each `report.md` must regenerate byte-for-byte.
 
 ## Hard rules (from the brief)
 
-- One branch and one PR per phase. Never push to `main`. Merge a phase PR only after
+- One branch and one PR per phase. Never push to `main`. GitHub rulesets enforce this:
+  `main` needs a PR with all 6 CI checks passing (no force push, no deletion), and `v*`
+  tags cannot be moved or deleted. If you add a CI job, add it to the `protect main` ruleset. Merge a phase PR only after
   every acceptance check in `PROJECT.md` passes, including paid runs.
 - Never spend API or GPU money beyond the phase cap, and never start a paid run
   without Naman's OK. Caps live in `PHASE_CAPS`; the ledger enforces them across runs.

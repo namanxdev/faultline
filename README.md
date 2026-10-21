@@ -372,6 +372,20 @@ Haiku 5.5 run scored 4/4 on dev-0000 under 4 drifts
 needs `openai>=3.4`, which conflicts with LiteLLM's `openai<3`. Run real-model Inspect
 evals in an environment with `openai>=3.4`.
 
+### Harbor
+
+`faultline harbor-export` writes each task × drift as a [Harbor](harbor/README.md) task,
+to evaluate agent harnesses such as Claude Code or Codex CLI.
+
+- **Agent container.** It holds no faultline code and no database. The agent reaches the drifted tools only through an MCP server named `helpdesk`, which runs in a sidecar container.
+- **Grading.** A separate verifier image grades a copy of the sidecar's final database. Only that image holds the expected outcome.
+
+```sh
+uv build --wheel && docker build -t faultline-harbor:0.1.0 -f harbor/Dockerfile .
+uv run faultline harbor-export --split test --first 14 --output runs/harbor-tasks
+harbor run -p runs/harbor-tasks -a oracle -e docker -n 8
+```
+
 ### Shaped reward
 
 `faultline/rewards.py` adds an optional term to the 0/1 grade:
@@ -435,7 +449,8 @@ and the oracle cross-checks them. Skipping a pure read, such as the policy, pass
 the remembered value is still right; `policy_v4` is the drift that exposes it.
 Templates are synthetic and small, and a current frontier-lab model nearly saturates
 them. The Phase 3 evaluation covers 42 of the 100 test tasks, k=2, and no top-tier
-model. RL training belongs to Phase 4; Phase 2.5 (Harbor) is not done.
+model. RL training belongs to Phase 4. The Harbor port is validated with the oracle and a
+no-op agent; no paid harness run has been made yet.
 
 For `n` trials with `c` successes, the report uses
 `pass@k = 1 - C(n-c,k)/C(n,k)` and `pass^k = C(c,k)/C(n,k)`.
