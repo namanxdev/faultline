@@ -19,3 +19,7 @@ htmlcov/
 runs/
 *.sqlite3
 *.sqlite3-journal
+
+# Private planning and study notes: kept locally, never committed.
+PROJECT.md
+docs/LEARN-*.md

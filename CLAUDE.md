@@ -1,7 +1,7 @@
 # faultline
 
 An RL training and evaluation environment for tool-using agents whose MCP tools drift
-during work. `PROJECT.md` is the build brief and the source of truth for phases,
+during work. `PROJECT.md` (local only, git-ignored) is the build brief and the source of truth for phases,
 acceptance checks, and budgets. Read it before starting phase work.
 
 ## Commands
@@ -15,6 +15,7 @@ uv run faultline run --agent llm --budget-usd 5 --output runs/<new-dir>  # PAID
 uv run faultline report runs/<dir>/episodes.jsonl                # regenerate report
 uv run faultline validate --output runs/<new-dir>/validation.md  # all gates, offline
 uv run faultline-server --db <db> [--drift rename_param] [--http --port 8765]
+uv run inspect eval faultline/inspect_task.py -T split=dev --model mockllm/model  # free check
 ```
 
 Run all three checks (pytest, ruff check, ruff format --check) before every commit.
@@ -37,6 +38,10 @@ CI runs them on Ubuntu and Windows, Python 3.11 and 3.12.
   (must solve every task × drift), near misses via `skip`, `null`, and blanket hacks.
 - `faultline/validate.py`: offline gates over whole splits (`faultline validate`).
 - `faultline/calibrate.py`: tags template × drift cells; filters train.
+- `faultline/rewards.py`: optional bounded shaping on top of the 0/1 grade.
+- `faultline/inspect_task.py`: Inspect task; tools are the faultline MCP server over stdio.
+- `environments/faultline_vf/`: verifiers 0.4 taskset, its own package and lock
+  (overrides mcp to 2.0.0; Linux only, verifiers imports fcntl). Test it in WSL or CI.
 - `faultline/llm.py`: model registry (`MODELS`), prompts, budget, phase spend ledger.
 - `faultline/runner.py`: fresh DB copy and fresh server process per trial.
 - `docs/evidence/`: checked-in results; each `report.md` must regenerate byte-for-byte.
@@ -63,8 +68,9 @@ CI runs them on Ubuntu and Windows, Python 3.11 and 3.12.
   routing. OpenRouter entries pin one provider (`only`, `allow_fallbacks: false`).
 - Agents must use only what the MCP API exposes. They must never read `DRIFT`.
 - Run outputs go in a new `runs/<dir>`. Runs refuse to overwrite, and `runs/` is git-ignored.
-- End-of-phase docs: `docs/REPORT-phaseN.md` and `docs/LEARN-phaseN.md` (ASD-STE100
-  style, a Mermaid diagram, 3 hard decisions, 5 interview questions with answers).
+- End-of-phase docs: `docs/REPORT-phaseN.md` (committed) and `docs/LEARN-phaseN.md`
+  (local only, git-ignored; ASD-STE100 style, a Mermaid diagram, 3 hard decisions,
+  5 interview questions with answers). Never commit `PROJECT.md` or `LEARN` files.
 - Stage files explicitly; don't `git add -A` over untracked user files.
 
 ---
