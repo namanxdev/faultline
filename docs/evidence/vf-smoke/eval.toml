@@ -1,0 +1,24 @@
+# One real rollout per task through verifiers, with the same settings as faultline's
+# own LLM agent: OpenRouter, a pinned provider, temperature 0.7, and the null harness
+# (task MCP tools only, no shell). Run from this directory:
+#   uv run vf-eval @ configs/smoke.toml -n 4 -r 1 --no-push
+model = "anthropic/claude-haiku-5.5"
+
+[client]
+base_url = "https://openrouter.ai/api/v1"
+api_key_var = "OPENROUTER_API_KEY"
+
+[sampling]
+temperature = 0.7
+max_tokens = 2048
+provider = { only = ["anthropic"], allow_fallbacks = false }
+
+[env.taskset]
+id = "faultline-vf"
+split = "dev"
+
+[env.agent.harness]
+id = "null"
+
+[env.agent.runtime]
+type = "subprocess"
