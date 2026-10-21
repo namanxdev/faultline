@@ -6,13 +6,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from faultline import __version__
 from faultline.calibrate import sample, write_calibration
 from faultline.db import seed_database
 from faultline.environment import DRIFTS
+from faultline.harbor import export
 from faultline.llm import CALIBRATION_MODEL, DEFAULT_MODEL, MODELS, NOTES, PHASE_CAPS
 from faultline.report import write_report
 from faultline.runner import AGENTS, run
-from faultline.tasks import SPLITS, load
+from faultline.tasks import SPLIT_DRIFTS, SPLITS, load
 from faultline.validate import validate
 
 
@@ -50,6 +52,14 @@ def main() -> None:
     source = calibrate.add_mutually_exclusive_group(required=True)
     source.add_argument("--output", type=Path, help="Run a new paid calibration here")
     source.add_argument("--episodes", type=Path, help="Re-tag an existing episodes.jsonl")
+    hb = commands.add_parser("harbor-export", help="Write Harbor task folders")
+    hb.add_argument("--split", choices=["seed", *SPLITS], default="test")
+    hb.add_argument("--first", type=int)
+    hb.add_argument("--drifts", nargs="+", choices=DRIFTS, help="Default: the split's")
+    hb.add_argument(
+        "--wheel", type=Path, default=Path(f"dist/faultline-{__version__}-py3-none-any.whl")
+    )
+    hb.add_argument("--output", type=Path, required=True)
     check = commands.add_parser("validate")
     check.add_argument("--splits", nargs="+", choices=["seed", *SPLITS], default=["seed", *SPLITS])
     check.add_argument("--output", type=Path, required=True)
@@ -81,6 +91,13 @@ def main() -> None:
                 )
                 episodes = args.output / "episodes.jsonl"
             print(write_calibration(episodes))
+        elif args.command == "harbor-export":
+            if not args.wheel.is_file():
+                parser.error(f"{args.wheel} not found; run `uv build --wheel` first")
+            tasks = load(args.split)[: args.first]
+            drifts = args.drifts or SPLIT_DRIFTS[args.split]
+            written = export([(t, d) for t in tasks for d in drifts], args.output, args.wheel)
+            print(f"{len(written)} Harbor tasks in {args.output}")
         elif args.command == "validate":
             tasks = [task for split in args.splits for task in load(split)]
             args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -44,3 +44,21 @@ jobs:
       - run: uv run pytest -q
       # Gold (the oracle) must score 1 and an untouched task 0 on every drift.
       - run: uv run vf-validate faultline-vf --taskset.split dev --select.limit 26 --runtime.type subprocess --rich False -o /tmp/vf
+
+  harbor:
+    # Exported Harbor tasks in real containers: the oracle must score 1 and a
+    # do-nothing agent 0, through the sidecar MCP server and the separate verifier.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv build --wheel
+      - run: docker build -t faultline-harbor:0.1.0 -f harbor/Dockerfile .
+      - run: uv run faultline harbor-export --split test --first 14 --drifts rename_param+ambiguous_write --output /tmp/hb
+      - run: uvx --from harbor==0.24.0 harbor run -p /tmp/hb -a oracle -e docker -n 4 -o /tmp/oracle
+      - run: uv run python -m faultline.harbor check /tmp/oracle/*/result.json 1.0
+      - run: uvx --from harbor==0.24.0 harbor run -p /tmp/hb -a nop -e docker -n 4 -o /tmp/nop
+      - run: uv run python -m faultline.harbor check /tmp/nop/*/result.json 0.0

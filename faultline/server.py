@@ -16,8 +16,8 @@ DOMAINS = {"refund": RefundTools, "itsm": ITSMTools}
 
 
 class DriftServer(MCPServer):
-    def __init__(self, service: Tools):
-        super().__init__("faultline", version="0.1.0", log_level="ERROR")
+    def __init__(self, service: Tools, name: str = "faultline"):
+        super().__init__(name, version="0.1.0", log_level="ERROR")
         self.service = service
 
     async def list_tools(self):
@@ -53,9 +53,11 @@ def _tool(service: Tools, spec: ToolSpec):
     return run
 
 
-def create_server(path: str | Path, drift: str = "baseline", domain: str = "refund") -> MCPServer:
+def create_server(
+    path: str | Path, drift: str = "baseline", domain: str = "refund", name: str = "faultline"
+) -> MCPServer:
     service = DOMAINS[domain](path, drift)
-    server = DriftServer(service)
+    server = DriftServer(service, name)
     for spec in service.specs():
         server.add_tool(_tool(service, spec), name=spec.name, description=spec.description)
     return server
@@ -68,12 +70,16 @@ def main() -> None:
     parser.add_argument("--domain", choices=sorted(DOMAINS), default="refund")
     parser.add_argument("--http", action="store_true")
     parser.add_argument("--port", type=int, default=8765)
+    # A container serving a private compose network binds 0.0.0.0. The SDK then accepts
+    # any Host header; on 127.0.0.1 it keeps DNS-rebinding protection on.
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--name", default="faultline", help="Server name shown to clients")
     args = parser.parse_args()
     if not args.db.is_file():
         parser.error("Database does not exist. Run faultline seed first.")
-    server = create_server(args.db, args.drift, args.domain)
+    server = create_server(args.db, args.drift, args.domain, args.name)
     if args.http:
-        server.run(transport="streamable-http", host="127.0.0.1", port=args.port)
+        server.run(transport="streamable-http", host=args.host, port=args.port)
     else:
         server.run()
 

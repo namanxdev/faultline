@@ -42,6 +42,8 @@ CI runs them on Ubuntu and Windows, Python 3.11 and 3.12.
 - `faultline/inspect_task.py`: Inspect task; tools are the faultline MCP server over stdio.
 - `environments/faultline_vf/`: verifiers 0.4 taskset, its own package and lock
   (overrides mcp to 2.0.0; Linux only, verifiers imports fcntl). Test it in WSL or CI.
+- `faultline/harbor.py` + `harbor/`: Harbor export (`faultline harbor-export`), sidecar MCP
+  server, separate verifier. Rebuild `faultline-harbor:<version>` after code changes.
 - `faultline/llm.py`: model registry (`MODELS`), prompts, budget, phase spend ledger.
 - `faultline/runner.py`: fresh DB copy and fresh server process per trial.
 - `docs/evidence/`: checked-in results; each `report.md` must regenerate byte-for-byte.
