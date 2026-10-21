@@ -100,3 +100,11 @@ async def test_train_split_refuses_held_out_drifts(tmp_path):
         await run(
             tmp_path / "t", agent="oracle", split="train", drifts=("rename_param+ambiguous_write",)
         )
+
+
+async def test_first_n_tasks_of_a_split(tmp_path):
+    results = await run(
+        tmp_path / "f", agent="null", split="test", drifts=("baseline",), trials=1, first=3
+    )
+    assert [r["task_id"] for r in results] == ["test-0000", "test-0001", "test-0002"]
+    assert json.loads((tmp_path / "f" / "config.json").read_text())["first"] == 3

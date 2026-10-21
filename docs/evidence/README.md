@@ -62,3 +62,19 @@ Regenerate the validation summary (free, about 10 minutes):
 ```sh
 uv run faultline validate --output runs/validate/validation.md
 ```
+
+# Phase 3 evidence
+
+Completed on 2026-10-21. Total Phase 3 spend: $4.0818 of the $5 cap.
+
+| Run | Episodes | Passed | Artifacts |
+|---|---:|---:|---|
+| Eval: Claude Haiku 5.5, test tasks 0–41, 13 drifts, k=2 | 1,092 | 1,091 | [Report](eval-haiku-5.5/report.md), [episodes](eval-haiku-5.5/episodes.jsonl) |
+| Eval: GLM-5.3-Flash, same grid | 1,092 | 1,067 | [Report](eval-glm-5.3-flash/report.md), [episodes](eval-glm-5.3-flash/episodes.jsonl) |
+| Eval: MiMo-V2.6-Flash, same grid | 1,092 | 1,028 | [Report](eval-mimo-v2.6-flash/report.md), [episodes](eval-mimo-v2.6-flash/episodes.jsonl) |
+| MiMo stopped at the 512-token output cap (not used for results) | 208 | 186 | [Report](eval-mimo-aborted-512tok/report.md) |
+| Smoke tests: 4 models, 6 seed tasks each | 24 | 18 | [Folder](smoke-phase3/) |
+| verifiers: 4 real rollouts, Haiku 5.5, `null` harness | 4 | 4 | [Traces](vf-smoke/traces.jsonl), [config](vf-smoke/eval.toml) |
+| Inspect: 4 real samples, Haiku 5.5 | 4 | 4 | [Log](inspect-smoke/haiku-dev0000.eval) (open with `inspect view`) |
+
+Transcript paths in eval episodes are relative to `runs/p3-eval-<model>`.
