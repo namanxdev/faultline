@@ -237,6 +237,7 @@ async def run(
             "versions": {p: version(p) for p in ("mcp", "litellm")},
             "python": sys.version,
             "temperature": 0.7,
+            "max_output": MODELS[model].max_output if model else None,
             "max_steps": 15,
         },
     )

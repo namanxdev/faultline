@@ -7,6 +7,9 @@ requires-python = ">=3.11"
 license = "MIT"
 dependencies = ["mcp==2.3.0", "litellm>=1.80,<2", "python-dotenv>=1,<2"]
 
+[project.optional-dependencies]
+inspect = ["inspect-ai>=0.3.282,<0.4"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -16,7 +19,7 @@ faultline = "faultline.cli:main"
 faultline-server = "faultline.server:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=1", "ruff>=0.14"]
+dev = ["pytest>=8", "pytest-asyncio>=1", "ruff>=0.14", "inspect-ai==0.3.282"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -28,3 +31,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["faultline", "faultline_vf"]

@@ -20,6 +20,8 @@ class ModelSpec:
     input_usd_per_m: str
     output_usd_per_m: str
     params: dict
+    # Reasoning models spend output tokens on reasoning; 512 truncates them mid-answer.
+    max_output: int = 512
 
     @property
     def input_rate(self) -> Decimal:
@@ -85,6 +87,7 @@ MODELS = {
             "parallel_tool_calls": False,
             "extra_body": {"provider": {"only": ["anthropic"], "allow_fallbacks": False}},
         },
+        max_output=2048,
     ),
     "openrouter/xiaomi/mimo-v2.6-flash": ModelSpec(
         "OPENROUTER_API_KEY",
@@ -94,6 +97,7 @@ MODELS = {
             "parallel_tool_calls": False,
             "extra_body": {"provider": {"only": ["xiaomi"], "allow_fallbacks": False}},
         },
+        max_output=2048,
     ),
     "openrouter/z-ai/glm-5.3-flash": ModelSpec(
         "OPENROUTER_API_KEY",
@@ -103,6 +107,7 @@ MODELS = {
             "parallel_tool_calls": False,
             "extra_body": {"provider": {"only": ["z-ai"], "allow_fallbacks": False}},
         },
+        max_output=2048,
     ),
     "openrouter/deepseek/deepseek-v4.1-flash-1017": ModelSpec(
         "OPENROUTER_API_KEY",
@@ -112,6 +117,7 @@ MODELS = {
             "parallel_tool_calls": False,
             "extra_body": {"provider": {"only": ["deepseek"], "allow_fallbacks": False}},
         },
+        max_output=2048,
     ),
 }
 DEFAULT_MODEL = "openrouter/openai/gpt-4.1-mini"
@@ -261,7 +267,7 @@ async def run_llm(
         if prompt_bound > 100_000:
             usage.finish_reason = "context_limit"
             return
-        reserved = prompt_bound * spec.input_rate + MAX_OUTPUT * spec.output_rate
+        reserved = prompt_bound * spec.input_rate + spec.max_output * spec.output_rate
         await budget.reserve(reserved)
         usage.reserved_usd += float(reserved)
         response = await litellm.acompletion(
@@ -269,7 +275,7 @@ async def run_llm(
             messages=messages,
             tools=schemas,
             temperature=0.7,
-            max_tokens=MAX_OUTPUT,
+            max_tokens=spec.max_output,
             seed=seed + step,
             num_retries=0,
             timeout=45,

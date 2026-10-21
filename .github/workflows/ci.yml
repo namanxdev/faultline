@@ -27,3 +27,20 @@ jobs:
       - run: uv run ruff format --check .
       # No provider keys exist in CI; all model calls in tests use local mock transports.
       - run: uv run pytest -q
+
+  verifiers:
+    # verifiers 0.4.0 imports fcntl, so its environment package runs on Linux only.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: environments/faultline_vf
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -q
+      # Gold (the oracle) must score 1 and an untouched task 0 on every drift.
+      - run: uv run vf-validate faultline-vf --taskset.split dev --select.limit 26 --runtime.type subprocess --rich False -o /tmp/vf

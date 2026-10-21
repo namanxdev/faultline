@@ -21,7 +21,7 @@ from faultline.tasks import SPLIT_DRIFTS, Task
 
 
 async def episode(
-    task: Task, drift: str, agent: str, skip: str | None = None
+    task: Task, drift: str, agent: str, skip: str | None = None, transcript: list | None = None
 ) -> tuple[Grade, str | None]:
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "state.sqlite3"
@@ -30,7 +30,12 @@ async def episode(
         before = snapshot(path, tables)
         try:
             async with Client(create_server(path, drift, task.domain), cache=None) as connection:
-                await play(agent, ToolClient(connection, []), task, skip)
+                await play(
+                    agent,
+                    ToolClient(connection, transcript if transcript is not None else []),
+                    task,
+                    skip,
+                )
         except Exception as exc:
             # A brittle agent stopping on an error is a result, not a harness failure.
             error = error_name(exc)

@@ -1,0 +1,32 @@
+[project]
+name = "faultline-vf"
+version = "0.1.0"
+description = "faultline as a verifiers v1 taskset: drifting MCP tools, state-graded rewards."
+requires-python = ">=3.11,<3.14"
+license = "MIT"
+dependencies = ["verifiers==0.4.0", "faultline"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/faultline_vf"]
+
+[tool.uv.sources]
+faultline = { path = "../..", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.uv]
+# verifiers 0.4.0 pins mcp==2.0.0 and faultline pins 2.3.0. The taskset uses only
+# faultline's tools, drifts, tasks, and grader, which pass faultline's test suite on
+# mcp 2.0.0. faultline's own subprocess runner needs 2.3.0 and is not used here.
+override-dependencies = ["mcp==2.0.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
