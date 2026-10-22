@@ -218,7 +218,7 @@ the stopped run's new folder name, so the total is correct.
 
 ## Left for later phases
 
-- Phase 2.5 (Harbor port) was not done. It needs Docker and a harness eval budget.
+- Phase 2.5 (Harbor port): done. See the [Phase 2.5 report](REPORT-phase2.5.md).
 - A top-tier model on the full grid (about $41 for Claude Sonnet 5.5).
 - Harder templates, since a frontier-lab model nearly saturates these.
 - Phase 4: train a small open model. Re-tag train with that model first, because nano's tags (Phase 2) are nano-specific.

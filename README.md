@@ -9,8 +9,10 @@ status, the note, and every unrelated record.
 and an [Inspect](#inspect-uk-aisi) task, with an optional bounded shaped reward. Three
 current models were evaluated on the test split under all 13 drift conditions
 ([results](#phase-3-result-three-models-on-the-test-split), [report](docs/REPORT-phase3.md)).
-Phase 2 (v0.1) added 450 generated tasks, two domains, eight perturbations plus five
-combined pairs, idempotency keys, and offline gates over every task.
+Phase 2.5 exports tasks to [Harbor](#harbor): the oracle scored reward 1 on 182/182
+tasks and the no-op agent 0/182 ([report](docs/REPORT-phase2.5.md)).
+Phase 2 (v0.1) added 450 generated tasks in two domains; seven drifts plus baseline, and
+five combined pairs; idempotency keys; and offline gates over every task.
 
 ## Quickstart
 
@@ -201,6 +203,8 @@ means adding a registry entry with verified prices, a key variable, and routing;
 unknown models are refused. Prices were checked on 2026-10-18 (Phase 3 entries:
 2026-10-21). Reasoning models get a 2,048-token output cap, because 512 cut them off
 mid-answer; the Phase 1 and 2 models keep 512.
+The [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+marks the dated snapshot deprecated; OpenRouter still serves it.
 
 ### Phase 3 result: three models on the test split
 
@@ -216,7 +220,7 @@ Haiku 5.5 is the cheap tier of a frontier lab, not a top-tier model.
 | MiMo-V2.6-Flash (Xiaomi) | open | 1,028/1,092 (94.1%) | 0.76 (description_drift) | $0.58 |
 
 - Haiku nearly saturates these tasks. Separating strong models needs harder templates.
-- pass^2 hides less than pass@2. Under `description_drift`, GLM scores 1.00 pass@2 but
+- pass@2 hides what pass^2 shows. Under `description_drift`, GLM scores 1.00 pass@2 but
   0.88 pass^2.
 - MiMo repeated the ITSM change decision after an ambiguous 504 in 30 episodes. Its
   pass^2 is 0.83–0.86 under every drift that contains `ambiguous_write`.
@@ -229,8 +233,6 @@ Full per-drift tables, failure tags, and costs: [Phase 3 report](docs/REPORT-pha
 Evidence: [Haiku](docs/evidence/eval-haiku-5.5/report.md),
 [GLM](docs/evidence/eval-glm-5.3-flash/report.md),
 [MiMo](docs/evidence/eval-mimo-v2.6-flash/report.md).
-The [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
-marks the dated snapshot deprecated; OpenRouter still serves it.
 
 ### Phase 1 result: gpt-4.1-mini
 
@@ -248,8 +250,10 @@ Billed cost: $0.132 for 289,950 tokens.
 - **Ambiguous write is the dominant failure.** All 9 trials whose task needed a
   refund retried the refund after the 504 without re-reading the order. Each one
   double-refunded (`double_refund`, `over_refund`). The 9 passes are the three
-  tasks that need no refund. The system prompt's stale notes say to retry a
-  timed-out write; the model followed them.
+  tasks that need no refund. With neutral notes instead of the stale ones, 9 of 9
+  still retried blindly, so this is the model's default behavior, not
+  prompt-induced. Overall pass rates did not differ significantly (54/72 vs 59/72,
+  Fisher exact p = 0.42) ([ablation](docs/evidence/ablation-neutral/report.md)).
 - **pass@3 hides unreliability.** Under `rename_param`, pass@3 is 1.00 but pass^3
   is 0.50: the model can solve every task, but solves half of them in only some
   trials. Baseline drops from 1.00 to 0.83 the same way.
@@ -457,7 +461,7 @@ For `n` trials with `c` successes, the report uses
 It calculates these per task and drift, then takes macro means. It omits `k > n`.
 
 See the [Phase 1 report](docs/REPORT-phase1.md), [Phase 2 report](docs/REPORT-phase2.md),
-and [Phase 3 report](docs/REPORT-phase3.md).
+[Phase 2.5 report](docs/REPORT-phase2.5.md), and [Phase 3 report](docs/REPORT-phase3.md).
 
 ## License
 
