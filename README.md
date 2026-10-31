@@ -360,7 +360,9 @@ uv run vf-eval @ configs/smoke.toml -n 4 -r 1 --no-push   # needs OPENROUTER_API
 
 Results: `vf-validate` gold and noop were valid 26/26. 4 real Haiku 5.5 rollouts with
 the `null` harness (task tools only, no shell) all scored reward 1.00, for $0.0065.
-Nothing was pushed to the Environments Hub.
+Pushed to the Environments Hub as `naman411/faultline-vf` 0.1.0 (public, 2026-10-31).
+Installing it from the Hub is untested: the wheel depends on `faultline`, which is not
+on a package index.
 
 ### Inspect (UK AISI)
 
